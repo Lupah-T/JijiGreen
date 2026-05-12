@@ -1,5 +1,8 @@
 # JijiGreen 🌱
 
+![JijiGreen Banner](JijiDemo.png)
+
+
 ### Community-Powered Recycling & Environmental Engagement Platform
 
 JijiGreen is a technology-driven environmental engagement and recycling platform designed to improve waste management, increase recycling participation, and reward sustainable behavior through community participation, gamification, and verified recycling systems.
