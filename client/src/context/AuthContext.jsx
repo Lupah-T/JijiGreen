@@ -15,6 +15,11 @@ export function AuthProvider({ children }) {
         setUser(data.user);
         return data;
       },
+      register: async (payload) => {
+        const data = await authService.register(payload);
+        setUser(data.user);
+        return data;
+      },
       logout: () => {
         authService.logout();
         setUser(null);

@@ -1,35 +1,46 @@
 import User from "../models/User.js";
 import { generateToken } from "../utils/generateToken.js";
+import { sendError, sendSuccess } from "../utils/apiResponse.js";
 
-export const register = async (req, res) => {
-  const { name, email, password, role, school } = req.body;
-  const existingUser = await User.findOne({ email });
+export const register = async (req, res, next) => {
+  try {
+    const { name, email, password, role, school } = req.body;
+    const existingUser = await User.exists({ email });
 
-  if (existingUser) {
-    return res.status(409).json({ message: "Email already registered" });
+    if (existingUser) {
+      return sendError(res, 409, "User already exists");
+    }
+
+    const user = await User.create({ name, email, password, role, school });
+
+    return sendSuccess(res, 201, "User registered successfully", {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+    });
+  } catch (error) {
+    return next(error);
   }
-
-  const user = await User.create({ name, email, password, role, school });
-  res.status(201).json({
-    user: { id: user._id, name: user.name, email: user.email, role: user.role },
-    token: generateToken({ id: user._id, role: user.role }),
-  });
 };
 
-export const login = async (req, res) => {
-  const { email, password } = req.body;
-  const user = await User.findOne({ email });
+export const login = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email }).select("+password");
 
-  if (!user || !(await user.matchPassword(password))) {
-    return res.status(401).json({ message: "Invalid credentials" });
+    if (!user || !(await user.matchPassword(password))) {
+      return sendError(res, 401, "Invalid credentials");
+    }
+
+    return sendSuccess(res, 200, "Login successful", {
+        user: { id: user._id, name: user.name, email: user.email, role: user.role },
+        token: generateToken({ id: user._id, role: user.role }),
+    });
+  } catch (error) {
+    return next(error);
   }
-
-  res.json({
-    user: { id: user._id, name: user.name, email: user.email, role: user.role },
-    token: generateToken({ id: user._id, role: user.role }),
-  });
 };
 
 export const me = (req, res) => {
-  res.json(req.user);
+  sendSuccess(res, 200, "Current user retrieved successfully", req.user);
 };

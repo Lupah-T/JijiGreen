@@ -23,11 +23,49 @@
   padding: 10px 14px;
 }
 
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .input {
   border: 1px solid #cbd9cf;
   border-radius: 8px;
   padding: 10px 12px;
   width: 100%;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field span {
+  color: #34473a;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.field-error {
+  color: #b42318;
+}
+
+.alert {
+  border-radius: 8px;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.alert.error {
+  background: #fff1f0;
+  border: 1px solid #ffccc7;
+  color: #a8071a;
+}
+
+.alert.success {
+  background: #edf8f0;
+  border: 1px solid #b7ebc6;
+  color: #126b45;
 }
 
 .nav {
