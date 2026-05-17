@@ -3,9 +3,32 @@ import bcrypt from "bcryptjs";
 
 const userSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true, lowercase: true },
-    password: { type: String, required: true },
+    name: {
+      type: String,
+      required: [true, "Name is required"],
+      trim: true,
+      minlength: [2, "Name must be at least 2 characters"],
+    },
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      unique: true,
+      lowercase: true,
+      trim: true,
+      match: [/^\S+@\S+\.\S+$/, "Invalid email format"],
+    },
+    password: {
+      type: String,
+      required: [true, "Password is required"],
+      minlength: [8, "Password must be at least 8 characters"],
+      select: false,
+      validate: {
+        validator(value) {
+          return /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value);
+        },
+        message: "Password must include uppercase, lowercase, and number",
+      },
+    },
     role: { type: String, enum: ["student", "collector", "admin"], default: "student" },
     school: { type: mongoose.Schema.Types.ObjectId, ref: "School" },
     ecoPoints: { type: Number, default: 0 },
