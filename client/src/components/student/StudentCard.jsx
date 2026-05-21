@@ -16,7 +16,7 @@ function getInitials(name = "") {
   return name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "U";
 }
 
-export default function StudentCard({ student, points = 0 }) {
+export default function StudentCard({ student, points = 0, onViewQr }) {
   const name   = student?.name   || "Student";
   const school = student?.school || "School not set";
   const tier   = getTier(points);
@@ -68,8 +68,14 @@ export default function StudentCard({ student, points = 0 }) {
           <div style={{ fontWeight: 600, fontSize: 13, color: "var(--clr-text)" }}>Your QR Code</div>
           <div style={{ fontSize: 12, color: "var(--clr-muted)" }}>Show this at any collection point</div>
         </div>
-        <button className="button" style={{ marginLeft: "auto", fontSize: 12, padding: "6px 14px" }}>
-          View QR
+        <button
+          id="view-qr-btn"
+          className="button"
+          style={{ marginLeft: "auto", fontSize: 12, padding: "6px 14px" }}
+          onClick={onViewQr}
+          type="button"
+        >
+          <QrCode size={14} /> View QR
         </button>
       </div>
     </article>

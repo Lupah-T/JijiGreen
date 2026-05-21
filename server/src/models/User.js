@@ -32,6 +32,9 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: ["student", "collector", "admin"], default: "student" },
     school: { type: mongoose.Schema.Types.ObjectId, ref: "School" },
     ecoPoints: { type: Number, default: 0 },
+    phone:     { type: String, trim: true },
+    bio:       { type: String, maxlength: [300, "Bio max 300 characters"] },
+    avatarUrl: { type: String },
   },
   { timestamps: true }
 );

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authService } from "../../services/authService.js";
 import { validateRegisterForm } from "../../utils/validators.js";
+import { useAuth } from "../../hooks/useAuth.js";
 import { Leaf, Eye, EyeOff, GraduationCap, Truck, ShieldCheck } from "lucide-react";
 
 const ROLES = [
@@ -33,6 +34,7 @@ function PasswordStrength({ password }) {
 
 export default function Register() {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "student" });
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
@@ -50,7 +52,11 @@ export default function Register() {
     setIsSubmitting(true);
     try {
       const result = await authService.register({ ...form, name: form.name.trim(), email: form.email.trim() });
-      if (result.success) navigate("/login");
+      if (result.success) {
+        if (result.user) setUser(result.user);
+        localStorage.setItem("role", result.user?.role || form.role);
+        navigate(`/${result.user?.role || form.role}/dashboard`);
+      }
     } catch (error) {
       setErrors(error.fieldErrors || {});
       setMessage(
