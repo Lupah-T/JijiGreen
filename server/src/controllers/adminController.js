@@ -4,6 +4,8 @@ import School from "../models/School.js";
 import Reward from "../models/Reward.js";
 import AuditLog from "../models/AuditLog.js";
 import CollectorApplication from "../models/CollectorApplication.js";
+import WasteSubmission from "../models/WasteSubmission.js";
+import Voucher from "../models/Voucher.js";
 import { getPlatformAnalytics } from "../services/analyticsEngine.js";
 import { writeAuditLog } from "../services/auditService.js";
 import { sendNotification } from "../services/notificationService.js";
@@ -204,5 +206,52 @@ export const updateUserRole = async (req, res) => {
   } catch (error) {
     // Do not leak internal errors
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getUserDetails = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!mongoose.isValidObjectId(userId)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    const user = await User.findById(userId).populate("school");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Fetch collections where user is the student (or collector)
+    const collections = await WasteSubmission.find({ 
+      $or: [{ student: userId }, { collector: userId }] 
+    }).sort({ createdAt: -1 });
+
+    const totalPointsEarned = collections
+      .filter(c => c.status === "verified")
+      .reduce((sum, c) => sum + (c.pointsAwarded || 0), 0);
+
+    // Fetch rewards/vouchers redeemed by the user
+    const vouchers = await Voucher.find({ user: userId })
+      .populate("reward")
+      .sort({ createdAt: -1 });
+
+    const totalPointsRedeemed = vouchers.reduce((sum, v) => {
+      return sum + (v.reward?.pointsCost || 0);
+    }, 0);
+
+    res.json({
+      success: true,
+      data: {
+        profile: user,
+        collections,
+        vouchers,
+        stats: {
+          totalPointsEarned,
+          totalPointsRedeemed,
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error fetching user details" });
   }
 };

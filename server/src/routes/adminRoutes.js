@@ -10,6 +10,7 @@ import {
   listUsers,
   reviewCollectorApplication,
   updateUserRole,
+  getUserDetails,
 } from "../controllers/adminController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { roleMiddleware } from "../middleware/roleMiddleware.js";
@@ -58,6 +59,7 @@ router.patch(
 router.use(roleMiddleware("super_admin", "operations_admin", "school_admin"));
 router.get("/dashboard", getAdminDashboard);
 router.get("/users", roleMiddleware("super_admin", "operations_admin"), listUsers);
+router.get("/users/:userId/details", roleMiddleware("super_admin"), getUserDetails);
 router.get("/schools", listSchools);
 router.post("/schools", roleMiddleware("super_admin", "operations_admin"), createSchool);
 router.post("/rewards", roleMiddleware("super_admin", "operations_admin"), rewardValidation, handleValidation, createReward);
