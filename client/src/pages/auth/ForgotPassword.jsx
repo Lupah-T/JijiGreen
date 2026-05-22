@@ -63,7 +63,7 @@ export default function ForgotPassword() {
           {sent ? (
             <div className="alert alert-success" style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
               <ShieldCheck size={18} />
-              <span>Check your email for a reset link.</span>
+            <span>Check your email for a reset link. If you don't see it, check your spam or junk folder.</span>
             </div>
           ) : null}
           {err && <div className="alert alert-error">{err}</div>}
