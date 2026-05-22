@@ -1,4 +1,4 @@
-import { loginUser, registerUser } from "../api/authApi.js";
+import { loginUser, registerUser, forgotPassword as forgotPasswordApi, resetPassword as resetPasswordApi } from "../api/authApi.js";
 
 export const authService = {
   async login(payload) {
@@ -35,6 +35,21 @@ export const authService = {
       message: data.message || "User registered successfully",
       user: authData.user,
       token: authData.token,
+    };
+  },
+  async forgotPassword(payload) {
+    const { data } = await forgotPasswordApi(payload);
+    return {
+      success: data.success ?? true,
+      message: data.message || "If an account exists, a reset link has been sent",
+    };
+  },
+  async resetPassword({ token, password }) {
+    if (!token) throw new Error("Missing token");
+    const { data } = await resetPasswordApi(token, { password });
+    return {
+      success: data.success ?? true,
+      message: data.message || "Password reset successful",
     };
   },
   logout() {

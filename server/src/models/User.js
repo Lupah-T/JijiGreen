@@ -41,6 +41,8 @@ const userSchema = new mongoose.Schema(
     phone:     { type: String, trim: true },
     bio:       { type: String, maxlength: [300, "Bio max 300 characters"] },
     avatarUrl: { type: String },
+    resetPasswordToken: { type: String },
+    resetPasswordExpire: { type: Date },
   },
   { timestamps: true }
 );

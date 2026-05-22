@@ -1,14 +1,23 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Leaf, Mail, QrCode, ShieldCheck } from "lucide-react";
+import { authService } from "../../services/authService.js";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
 
   const submit = (event) => {
     event.preventDefault();
-    setSent(true);
+    setErr("");
+    setBusy(true);
+    authService
+      .forgotPassword({ email })
+      .then(() => setSent(true))
+      .catch((ex) => setErr(ex.message || "Could not send reset link"))
+      .finally(() => setBusy(false));
   };
 
   return (
@@ -54,9 +63,10 @@ export default function ForgotPassword() {
           {sent ? (
             <div className="alert alert-success" style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
               <ShieldCheck size={18} />
-              <span>Reset instructions are ready to send to {email || "your email"} when email delivery is connected.</span>
+              <span>Check your email for a reset link.</span>
             </div>
           ) : null}
+          {err && <div className="alert alert-error">{err}</div>}
 
           <form onSubmit={submit} style={{ display: "grid", gap: 16 }}>
             <div className="field">
@@ -76,8 +86,8 @@ export default function ForgotPassword() {
                 <Mail size={17} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-soft)" }} />
               </div>
             </div>
-            <button className="btn btn-primary" type="submit" style={{ justifyContent: "center", padding: 13 }}>
-              Send reset link
+            <button className="btn btn-primary" type="submit" disabled={busy} style={{ justifyContent: "center", padding: 13 }}>
+              {busy ? "Sending…" : "Send reset link"}
             </button>
           </form>
         </div>
