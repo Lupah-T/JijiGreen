@@ -1,15 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Leaf, Eye, EyeOff, ArrowRight, GraduationCap, Truck, ShieldCheck } from "lucide-react";
+import { Leaf, Eye, EyeOff, ArrowRight, QrCode } from "lucide-react";
 import { authService } from "../../services/authService.js";
 import { validateRegisterForm } from "../../utils/validators.js";
 import { useAuth } from "../../hooks/useAuth.js";
-
-const ROLES = [
-  { value:"student",  label:"Student",   Icon:GraduationCap, desc:"Earn eco-points by recycling" },
-  { value:"collector",label:"Collector", Icon:Truck,         desc:"Verify waste submissions" },
-  { value:"admin",    label:"Admin",     Icon:ShieldCheck,   desc:"Manage the platform" },
-];
 
 function PasswordStrength({ pw }) {
   const score = [/.{8,}/,/[A-Z]/,/[0-9]/,/[^A-Za-z0-9]/].filter(r=>r.test(pw)).length;
@@ -29,7 +23,7 @@ function PasswordStrength({ pw }) {
 export default function Register() {
   const navigate = useNavigate();
   const { setUser } = useAuth();
-  const [form, setForm] = useState({ name:"", email:"", password:"", role:"student" });
+  const [form, setForm] = useState({ name:"", email:"", password:"" });
   const [errors, setErrors] = useState({});
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -44,11 +38,11 @@ export default function Register() {
     if (Object.keys(v).length > 0) return;
     setBusy(true);
     try {
-      const r = await authService.register({...form, name:form.name.trim(), email:form.email.trim()});
+      const r = await authService.register({ name: form.name.trim(), email: form.email.trim(), password: form.password });
       if (r.success) {
         if (r.user) setUser(r.user);
-        localStorage.setItem("role", r.user?.role || form.role);
-        navigate(`/${r.user?.role || form.role}/dashboard`);
+        localStorage.setItem("role", r.user?.role || "student");
+        navigate("/student/dashboard");
       }
     } catch (ex) {
       const code = ex.statusCode;
@@ -74,7 +68,7 @@ export default function Register() {
           </p>
           {/* SDG chips */}
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {["SDG 11","SDG 12","SDG 13"].map(s=>(
+            {["Student by default","QR Eco ID","RBAC protected"].map(s=>(
               <span key={s} style={{background:"rgba(74,222,128,.15)",border:"1px solid rgba(74,222,128,.25)",borderRadius:100,padding:"5px 14px",fontSize:13,color:"var(--g-300)",fontWeight:600}}>{s}</span>
             ))}
           </div>
@@ -121,23 +115,13 @@ export default function Register() {
               {errors.password&&<span className="field-error">{errors.password}</span>}
             </div>
 
-            {/* Role */}
-            <div className="field">
-              <span className="field-label">I am a…</span>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-                {ROLES.map(({value,label,Icon,desc})=>(
-                  <button key={value} type="button" onClick={()=>setForm(p=>({...p,role:value}))} style={{
-                    border:`2px solid ${form.role===value?"var(--g-600)":"var(--border)"}`,
-                    background:form.role===value?"var(--g-50)":"#fff",
-                    borderRadius:"var(--r-md)",padding:"12px 8px",cursor:"pointer",
-                    display:"flex",flexDirection:"column",alignItems:"center",gap:6,
-                    transition:"all 180ms",color:form.role===value?"var(--g-700)":"var(--text-muted)",
-                    fontSize:12,fontWeight:600,
-                  }}>
-                    <Icon size={18}/>{label}
-                    <span style={{fontSize:10,fontWeight:400,opacity:.7,lineHeight:1.3,textAlign:"center"}}>{desc}</span>
-                  </button>
-                ))}
+            <div style={{display:"flex",gap:12,alignItems:"flex-start",background:"var(--g-50)",border:"1px solid var(--g-100)",borderRadius:"var(--r-md)",padding:14}}>
+              <QrCode size={20} style={{color:"var(--g-700)",flexShrink:0,marginTop:2}}/>
+              <div>
+                <div style={{fontWeight:800,fontSize:14}}>All public accounts start as students</div>
+                <p style={{fontSize:13,color:"var(--text-muted)",marginTop:2}}>
+                  Collector and admin access is assigned later through secure review by authorized staff.
+                </p>
               </div>
             </div>
 

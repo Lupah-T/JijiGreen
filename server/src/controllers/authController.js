@@ -4,18 +4,18 @@ import { sendError, sendSuccess } from "../utils/apiResponse.js";
 
 export const register = async (req, res, next) => {
   try {
-    const { name, email, password, role, school } = req.body;
+    const { name, email, password } = req.body;
     const existingUser = await User.exists({ email });
 
     if (existingUser) {
       return sendError(res, 409, "User already exists");
     }
 
-    const user = await User.create({ name, email, password, role, school });
+    const user = await User.create({ name, email, password, role: "student" });
 
     return sendSuccess(res, 201, "User registered successfully", {
-        user: { id: user._id, name: user.name, email: user.email, role: user.role },
-        token: generateToken({ id: user._id, role: user.role }),
+      user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      token: generateToken({ id: user._id, role: user.role }),
     });
   } catch (error) {
     return next(error);
@@ -29,6 +29,10 @@ export const login = async (req, res, next) => {
 
     if (!user || !(await user.matchPassword(password))) {
       return sendError(res, 401, "Invalid credentials");
+    }
+
+    if (!user.isActive) {
+      return sendError(res, 403, "Account is inactive");
     }
 
     return sendSuccess(res, 200, "Login successful", {

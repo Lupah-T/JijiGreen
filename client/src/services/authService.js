@@ -8,6 +8,9 @@ export const authService = {
     if (authData.token) {
       localStorage.setItem("token", authData.token);
     }
+    if (authData.user?.role) {
+      localStorage.setItem("role", authData.user.role);
+    }
 
     return {
       success: data.success ?? true,
@@ -22,6 +25,9 @@ export const authService = {
 
     if (authData.token) {
       localStorage.setItem("token", authData.token);
+    }
+    if (authData.user?.role) {
+      localStorage.setItem("role", authData.user.role);
     }
 
     return {
