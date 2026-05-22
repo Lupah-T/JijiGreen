@@ -590,7 +590,40 @@ Target:
 > Build a working community recycling participation platform for pilot testing in Kenya.
 
 ---
+## Getting Started
 
+### Prerequisites
+- Node.js installed
+- pnpm installed globally → `npm install -g pnpm`
+
+### Installation
+
+1. Clone the repository
+   git clone https://github.com/Lupah-T/JijiGreen.git
+   cd JijiGreen
+
+2. Install dependencies for both client and server
+
+   cd client
+   pnpm install
+
+   cd ../server
+   pnpm install
+
+3. Set up environment variables
+   - Create a `.env` file in the `server` folder
+   - Add the following:
+     MONGO_URI=your_mongodb_url
+     JWT_SECRET=your_secret_key
+     PORT=5000
+
+4. Run the project
+
+   # In the server folder
+   pnpm start
+
+   # In the client folder
+   pnpm dev
 # 🌱 JijiGreen
 
 ### “Community-Powered Environmental Action”
