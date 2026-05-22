@@ -15,7 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 
-app.use(cors({ origin: process.env.CLIENT_URL || "*" }));
+app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:5174" }));
 app.use(express.json());
 app.use(morgan("dev"));
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
