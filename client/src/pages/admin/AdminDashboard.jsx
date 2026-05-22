@@ -9,7 +9,7 @@ const RECENT_USERS=[
   {name:"Chloe Wanjiku", role:"student",school:"Karen C School",  joined:"2 days ago",av:"CW"},
   {name:"David Kamau",   role:"student",school:"Strathmore Prep", joined:"3 days ago",av:"DK"},
 ];
-const ROLE_COLOR={student:"badge-green",collector:"badge-blue",admin:"badge-red"};
+const ROLE_COLOR={student:"badge-green",collector:"badge-blue",school_admin:"badge-gray",operations_admin:"badge-amber",super_admin:"badge-red"};
 
 export default function AdminDashboard(){
   return(

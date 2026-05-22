@@ -17,10 +17,17 @@ export const getProfile = async (req, res) => {
 };
 
 export const updateProfile = async (req, res) => {
-  const { name, phone, bio, avatarUrl } = req.body;
+  const allowedFields = ["name", "phone", "bio", "avatarUrl"];
+  const updates = allowedFields.reduce((acc, field) => {
+    if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+      acc[field] = req.body[field];
+    }
+    return acc;
+  }, {});
+
   const user = await User.findByIdAndUpdate(
     req.user._id,
-    { name, phone, bio, avatarUrl },
+    updates,
     { new: true, runValidators: true }
   ).select("-password");
   res.json({ success: true, message: "Profile updated", data: user });

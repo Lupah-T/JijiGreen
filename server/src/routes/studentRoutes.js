@@ -5,7 +5,7 @@ import { allowRoles } from "../middleware/roleMiddleware.js";
 
 const router = Router();
 
-router.use(protect, allowRoles("student"));
+router.use(protect, allowRoles("student", "collector"));
 router.get("/dashboard", getStudentDashboard);
 router.get("/history", getStudentHistory);
 router.get("/profile", getProfile);

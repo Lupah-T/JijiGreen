@@ -4,6 +4,12 @@ import { Leaf, Eye, EyeOff, ArrowRight, Recycle, Star, Shield } from "lucide-rea
 import { authService } from "../../services/authService.js";
 import { useAuth } from "../../hooks/useAuth.js";
 
+const dashboardForRole = (role) => {
+  if (role === "collector") return "/collector/dashboard";
+  if (["school_admin", "operations_admin", "super_admin"].includes(role)) return "/admin/dashboard";
+  return "/student/dashboard";
+};
+
 export default function Login() {
   const navigate = useNavigate();
   const { setUser } = useAuth();
@@ -22,7 +28,7 @@ export default function Login() {
       if (r.success && r.user) {
         setUser(r.user);
         localStorage.setItem("role", r.user.role);
-        navigate(`/${r.user.role}/dashboard`);
+        navigate(dashboardForRole(r.user.role));
       }
     } catch (ex) {
       setErr(ex.message || "Invalid email or password.");
