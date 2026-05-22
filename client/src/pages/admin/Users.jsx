@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, ShieldCheck, UserPlus, XCircle } from "lucide-react";
+import { CheckCircle2, ShieldCheck, UserPlus, XCircle, Eye } from "lucide-react";
+import { Link } from "react-router-dom";
 import { createPrivilegedUser, getCollectorApplications, getUsers, reviewCollectorApplication, updateUserRole } from "../../api/adminApi.js";
 import { useAuth } from "../../hooks/useAuth.js";
 
@@ -123,7 +124,7 @@ export default function Users() {
         <div className="section-header"><span className="section-title">Platform users</span></div>
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
               {users.map((u) => (
                 <tr key={u._id || u.id}>
@@ -148,6 +149,13 @@ export default function Users() {
                     )}
                   </td>
                   <td><span className={u.isActive === false ? "badge badge-red" : "badge badge-green"}>{u.isActive === false ? "Inactive" : "Active"}</span></td>
+                  <td>
+                    {isSuperAdmin && (
+                      <Link to={`/admin/users/${u._id || u.id}`} className="btn btn-sm btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <Eye size={14} /> View Details
+                      </Link>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
