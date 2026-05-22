@@ -16,6 +16,7 @@ import Analytics from "../pages/admin/Analytics.jsx";
 import RewardsManagement from "../pages/admin/RewardsManagement.jsx";
 import Schools from "../pages/admin/Schools.jsx";
 import Users from "../pages/admin/Users.jsx";
+import UserDetails from "../pages/admin/UserDetails.jsx";
 import CollectionHistory from "../pages/collector/CollectionHistory.jsx";
 import CollectorDashboard from "../pages/collector/CollectorDashboard.jsx";
 import VerifyWaste from "../pages/collector/VerifyWaste.jsx";
@@ -61,6 +62,7 @@ export default function AppRoutes() {
         </Route>
         <Route element={<ProtectedRoute allowedRoles={["operations_admin", "super_admin"]} />}>
           <Route path="admin/users" element={<Users />} />
+          <Route path="admin/users/:userId" element={<UserDetails />} />
           <Route path="admin/rewards" element={<RewardsManagement />} />
         </Route>
       </Route>
