@@ -14,9 +14,8 @@ export const register = async (req, res, next) => {
     const user = await User.create({ name, email, password, role, school });
 
     return sendSuccess(res, 201, "User registered successfully", {
-        id: user._id,
-        name: user.name,
-        email: user.email,
+        user: { id: user._id, name: user.name, email: user.email, role: user.role },
+        token: generateToken({ id: user._id, role: user.role }),
     });
   } catch (error) {
     return next(error);

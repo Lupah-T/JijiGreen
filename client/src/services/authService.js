@@ -18,12 +18,17 @@ export const authService = {
   },
   async register(payload) {
     const { data } = await registerUser(payload);
-    const registeredUser = data.data || data.user;
+    const authData = data.data || data;
+
+    if (authData.token) {
+      localStorage.setItem("token", authData.token);
+    }
 
     return {
       success: data.success ?? true,
       message: data.message || "User registered successfully",
-      user: registeredUser,
+      user: authData.user,
+      token: authData.token,
     };
   },
   logout() {

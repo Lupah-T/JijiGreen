@@ -1,19 +1,35 @@
 import { Outlet } from "react-router-dom";
 import Sidebar from "../components/common/Sidebar.jsx";
+import { useAuth } from "../hooks/useAuth.js";
+import { LayoutDashboard, Star, Trophy, History, User, CheckSquare, ClipboardList, Users, BarChart2, Gift } from "lucide-react";
+import { NavLink } from "react-router-dom";
 
-const links = [
-  { to: "/student/dashboard", label: "Student" },
-  { to: "/collector/dashboard", label: "Collector" },
-  { to: "/admin/dashboard", label: "Admin" },
-];
+const MOBILE_NAV = {
+  student:   [{ to:"/student/dashboard", I:LayoutDashboard, l:"Home" }, { to:"/student/rewards", I:Star, l:"Rewards" }, { to:"/student/leaderboard", I:Trophy, l:"Ranks" }, { to:"/student/profile", I:User, l:"Profile" }],
+  collector: [{ to:"/collector/dashboard", I:LayoutDashboard, l:"Home" }, { to:"/collector/verify-waste", I:CheckSquare, l:"Verify" }, { to:"/collector/history", I:ClipboardList, l:"History" }],
+  admin:     [{ to:"/admin/dashboard", I:LayoutDashboard, l:"Home" }, { to:"/admin/users", I:Users, l:"Users" }, { to:"/admin/analytics", I:BarChart2, l:"Stats" }, { to:"/admin/rewards", I:Gift, l:"Rewards" }],
+};
 
 export default function DashboardLayout() {
+  const { user } = useAuth();
+  const role = user?.role || localStorage.getItem("role") || "student";
+  const mobileLinks = MOBILE_NAV[role] || MOBILE_NAV.student;
+
   return (
     <div className="dashboard-shell">
-      <Sidebar links={links} />
-      <main className="page">
+      <Sidebar />
+      <main className="dashboard-main">
         <Outlet />
       </main>
+      {/* Mobile bottom nav */}
+      <nav className="mobile-nav">
+        {mobileLinks.map(({ to, I, l }) => (
+          <NavLink key={to} to={to}
+            className={({ isActive }) => `mobile-nav-item${isActive ? " active" : ""}`}>
+            <I /> <span>{l}</span>
+          </NavLink>
+        ))}
+      </nav>
     </div>
   );
 }

@@ -1,8 +1,70 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./index.html", "./src/**/*.{js,jsx}"],
+  content: ["./index.html", "./src/**/*.{js,jsx,ts,tsx}"],
+  darkMode: "class",
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        heading: ["Outfit", "ui-sans-serif", "system-ui", "sans-serif"],
+        body: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+      },
+      colors: {
+        forest: {
+          50:  "#f0fdf4",
+          100: "#dcfce7",
+          200: "#bbf7d0",
+          300: "#86efac",
+          400: "#4ade80",
+          500: "#22c55e",
+          600: "#16a34a",
+          700: "#15803d",
+          800: "#166534",
+          900: "#14532d",
+          950: "#052e16",
+        },
+        eco: {
+          dark:    "#0a2218",
+          forest:  "#0d2f1a",
+          emerald: "#16a34a",
+          mint:    "#4ade80",
+          lime:    "#84cc16",
+          glow:    "rgba(22,163,74,0.25)",
+        },
+      },
+      boxShadow: {
+        "glow-sm":  "0 0 12px rgba(22,163,74,0.2)",
+        "glow-md":  "0 0 24px rgba(22,163,74,0.3)",
+        "glow-lg":  "0 0 40px rgba(22,163,74,0.4)",
+        "card":     "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.06)",
+        "card-lg":  "0 4px 24px rgba(0,0,0,0.1)",
+        "elevation":"0 8px 32px rgba(0,0,0,0.12)",
+      },
+      borderRadius: {
+        "xl":  "12px",
+        "2xl": "16px",
+        "3xl": "20px",
+        "4xl": "28px",
+      },
+      animation: {
+        "fade-up":      "fadeUp 0.5s ease forwards",
+        "fade-in":      "fadeIn 0.3s ease forwards",
+        "slide-in":     "slideIn 0.4s ease forwards",
+        "pulse-slow":   "pulse 3s infinite",
+        "spin-slow":    "spin 3s linear infinite",
+        "bounce-light": "bounceSlight 2s ease-in-out infinite",
+        "shimmer":      "shimmer 2s infinite",
+        "float":        "float 4s ease-in-out infinite",
+      },
+      keyframes: {
+        fadeUp:      { from: { opacity: 0, transform: "translateY(20px)" }, to: { opacity: 1, transform: "translateY(0)" } },
+        fadeIn:      { from: { opacity: 0 }, to: { opacity: 1 } },
+        slideIn:     { from: { opacity: 0, transform: "translateX(-20px)" }, to: { opacity: 1, transform: "translateX(0)" } },
+        bounceSlight:{ "0%,100%": { transform: "translateY(0)" }, "50%": { transform: "translateY(-6px)" } },
+        shimmer:     { "0%": { backgroundPosition: "-200% center" }, "100%": { backgroundPosition: "200% center" } },
+        float:       { "0%,100%": { transform: "translateY(0)" }, "50%": { transform: "translateY(-8px)" } },
+      },
+      backdropBlur: { xs: "2px" },
+    },
   },
   plugins: [],
 };
