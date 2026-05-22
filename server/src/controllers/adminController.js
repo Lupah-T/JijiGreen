@@ -9,7 +9,7 @@ import { writeAuditLog } from "../services/auditService.js";
 import { sendNotification } from "../services/notificationService.js";
 
 const ADMIN_CREATABLE_ROLES = ["collector", "school_admin", "operations_admin"];
-const ALLOWED_ROLE_UPDATES = ["collector", "school_admin", "operations_admin", "student"];
+const ALLOWED_ROLE_UPDATES = ["collector", "school_admin", "operations_admin", "student", "super_admin"];
 
 export const getAdminDashboard = async (_req, res) => {
   res.json(await getPlatformAnalytics());

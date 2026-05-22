@@ -99,6 +99,6 @@ export const reviewCollectorApplicationValidation = [
 
 export const roleUpdateValidation = [
   body("role")
-    .isIn(["collector", "school_admin", "operations_admin", "student"])
-    .withMessage("Role must be one of collector, school_admin, operations_admin, student"),
+    .isIn(["collector", "school_admin", "operations_admin", "student", "super_admin"])
+    .withMessage("Role must be one of collector, school_admin, operations_admin, student, super_admin"),
 ];
