@@ -96,3 +96,9 @@ export const reviewCollectorApplicationValidation = [
   body("status").isIn(["approved", "rejected"]).withMessage("Status must be approved or rejected"),
   body("moderationNotes").optional({ checkFalsy: true }).trim().isLength({ max: 1000 }),
 ];
+
+export const roleUpdateValidation = [
+  body("role")
+    .isIn(["collector", "school_admin", "operations_admin", "student"])
+    .withMessage("Role must be one of collector, school_admin, operations_admin, student"),
+];

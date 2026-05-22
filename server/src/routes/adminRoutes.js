@@ -9,6 +9,7 @@ import {
   listSchools,
   listUsers,
   reviewCollectorApplication,
+  updateUserRole,
 } from "../controllers/adminController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { roleMiddleware } from "../middleware/roleMiddleware.js";
@@ -16,6 +17,7 @@ import {
   createPrivilegedUserValidation,
   reviewCollectorApplicationValidation,
   validateRequest,
+  roleUpdateValidation,
 } from "../middleware/validation.js";
 import { rewardValidation } from "../validations/rewardValidation.js";
 import { handleValidation } from "../utils/validators.js";
@@ -44,6 +46,14 @@ router.patch(
   reviewCollectorApplication
 );
 router.get("/audit-logs", roleMiddleware("super_admin"), listAuditLogs);
+
+router.patch(
+  "/users/:userId/role",
+  roleMiddleware("super_admin"),
+  roleUpdateValidation,
+  validateRequest,
+  updateUserRole
+);
 
 router.use(roleMiddleware("super_admin", "operations_admin", "school_admin"));
 router.get("/dashboard", getAdminDashboard);

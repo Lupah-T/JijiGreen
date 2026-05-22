@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, ShieldCheck, UserPlus, XCircle } from "lucide-react";
-import { createPrivilegedUser, getCollectorApplications, getUsers, reviewCollectorApplication } from "../../api/adminApi.js";
+import { createPrivilegedUser, getCollectorApplications, getUsers, reviewCollectorApplication, updateUserRole } from "../../api/adminApi.js";
 import { useAuth } from "../../hooks/useAuth.js";
 
 const INITIAL_USER = { name: "", email: "", password: "", role: "collector" };
@@ -41,6 +41,25 @@ export default function Users() {
   const review = async (id, status) => {
     await reviewCollectorApplication(id, { status, moderationNotes: status === "approved" ? "Approved from admin console" : "Rejected from admin console" });
     load();
+  };
+
+  const changeRole = async (targetUser, newRole) => {
+    if (!isSuperAdmin) return;
+    if (targetUser._id === user.id) {
+      setMessage("You cannot change your own role");
+      return;
+    }
+    if (targetUser.role === newRole) return;
+    const ok = window.confirm(`Change role of ${targetUser.email} to ${newRole}?`);
+    if (!ok) return;
+
+    try {
+      await updateUserRole(targetUser._id, { role: newRole });
+      setMessage("Role updated");
+      load();
+    } catch (err) {
+      setMessage(err?.response?.data?.message || "Could not update role");
+    }
   };
 
   return (
@@ -110,7 +129,24 @@ export default function Users() {
                 <tr key={u._id || u.id}>
                   <td>{u.name}</td>
                   <td>{u.email}</td>
-                  <td><span className="badge badge-gray">{u.role}</span></td>
+                  <td>
+                    {isSuperAdmin ? (
+                      <select
+                        className="input"
+                        value={u.role}
+                        onChange={(e) => changeRole(u, e.target.value)}
+                        disabled={u._id === user.id || u.role === "super_admin"}
+                      >
+                        <option value="student">Student</option>
+                        <option value="collector">Collector</option>
+                        <option value="school_admin">School admin</option>
+                        <option value="operations_admin">Operations admin</option>
+                        <option value="super_admin">Super admin</option>
+                      </select>
+                    ) : (
+                      <span className="badge badge-gray">{u.role}</span>
+                    )}
+                  </td>
                   <td><span className={u.isActive === false ? "badge badge-red" : "badge badge-green"}>{u.isActive === false ? "Inactive" : "Active"}</span></td>
                 </tr>
               ))}

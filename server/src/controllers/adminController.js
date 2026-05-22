@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import User from "../models/User.js";
 import School from "../models/School.js";
 import Reward from "../models/Reward.js";
@@ -8,6 +9,7 @@ import { writeAuditLog } from "../services/auditService.js";
 import { sendNotification } from "../services/notificationService.js";
 
 const ADMIN_CREATABLE_ROLES = ["collector", "school_admin", "operations_admin"];
+const ALLOWED_ROLE_UPDATES = ["collector", "school_admin", "operations_admin", "student"];
 
 export const getAdminDashboard = async (_req, res) => {
   res.json(await getPlatformAnalytics());
@@ -139,4 +141,68 @@ export const listAuditLogs = async (_req, res) => {
     .limit(200);
 
   res.json({ success: true, data: logs });
+};
+
+export const updateUserRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+    const { userId } = req.params;
+
+    if (!role || typeof role !== "string") {
+      return res.status(400).json({ message: "Role is required" });
+    }
+
+    if (!ALLOWED_ROLE_UPDATES.includes(role)) {
+      return res.status(422).json({ message: "Invalid role" });
+    }
+
+    // prevent self role modification for safety
+    if (req.user.id === userId) {
+      return res.status(403).json({ message: "Users cannot modify their own role" });
+    }
+
+    if (!mongoose.isValidObjectId(userId)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    const targetUser = await User.findById(userId).select("+role isActive name email");
+    if (!targetUser) {
+      return res.status(404).json({ message: "Target user not found" });
+    }
+
+    if (!targetUser.isActive) {
+      return res.status(400).json({ message: "Target user account is inactive" });
+    }
+
+    // Do not allow changing super_admin via this endpoint
+    if (targetUser.role === "super_admin") {
+      return res.status(403).json({ message: "Modifying super_admin role via this endpoint is forbidden" });
+    }
+
+    const previousRole = targetUser.role;
+    if (previousRole === role) {
+      return res.status(200).json({ success: true, message: "Role unchanged", data: { id: targetUser._id, role: previousRole } });
+    }
+
+    targetUser.role = role;
+    await targetUser.save();
+
+    await writeAuditLog({
+      action: "role_update",
+      performedBy: req.user._id,
+      targetUser: targetUser._id,
+      previousRole,
+      newRole: role,
+      metadata: { changedVia: "/api/admin/users/:userId/role" },
+    });
+
+    res.json({
+      success: true,
+      message: "User role updated",
+      data: { id: targetUser._id, name: targetUser.name, email: targetUser.email, role: targetUser.role },
+    });
+  } catch (error) {
+    // Do not leak internal errors
+    res.status(500).json({ message: "Server error" });
+  }
 };

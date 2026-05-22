@@ -9,3 +9,4 @@ export const createPrivilegedUser = (payload) => api.post("/admin/create-user", 
 export const getCollectorApplications = () => api.get("/admin/collector-applications");
 export const reviewCollectorApplication = (id, payload) => api.patch(`/admin/collector-applications/${id}/review`, payload);
 export const getAuditLogs = () => api.get("/admin/audit-logs");
+export const updateUserRole = (userId, payload) => api.patch(`/admin/users/${userId}/role`, payload);
