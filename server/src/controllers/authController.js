@@ -1,6 +1,8 @@
 import User from "../models/User.js";
+import crypto from "crypto";
 import { generateToken } from "../utils/generateToken.js";
 import { sendError, sendSuccess } from "../utils/apiResponse.js";
+import { sendPasswordResetEmail, sendPasswordChangedEmail } from "../utils/email.js";
 
 export const register = async (req, res, next) => {
   try {
@@ -46,4 +48,49 @@ export const login = async (req, res, next) => {
 
 export const me = (req, res) => {
   sendSuccess(res, 200, "Current user retrieved successfully", req.user);
+};
+
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) return sendError(res, 404, "No account found for that email");
+
+    const resetToken = crypto.randomBytes(20).toString("hex");
+    const hashed = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+    user.resetPasswordToken = hashed;
+    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000; // 15 minutes
+    await user.save({ validateBeforeSave: false });
+
+    const resetLink = `${process.env.CLIENT_URL || "http://localhost:5173"}/reset-password/${resetToken}`;
+    await sendPasswordResetEmail(user.email, resetLink);
+
+    return sendSuccess(res, 200, "Password reset email sent");
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const resetPassword = async (req, res, next) => {
+  try {
+    const token = req.params.token;
+    const hashed = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({ resetPasswordToken: hashed, resetPasswordExpire: { $gt: Date.now() } }).select("+password");
+
+    if (!user) return sendError(res, 400, "Invalid or expired token");
+
+    user.password = req.body.password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+
+    await sendPasswordChangedEmail(user.email);
+
+    return sendSuccess(res, 200, "Password reset successful");
+  } catch (error) {
+    return next(error);
+  }
 };

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Leaf, Eye, EyeOff, ArrowRight, Recycle, Star, Shield } from "lucide-react";
 import { authService } from "../../services/authService.js";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -19,6 +19,8 @@ export default function Login() {
   const [busy, setBusy]   = useState(false);
 
   const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
+  const location = useLocation();
+  const successMessage = location.state?.message;
 
   const submit = async (e) => {
     e.preventDefault();
@@ -77,6 +79,7 @@ export default function Login() {
             </p>
           </div>
 
+          {successMessage && <div className="alert alert-success">{successMessage}</div>}
           {err && <div className="alert alert-error">{err}</div>}
 
           <form onSubmit={submit} style={{ display:"grid", gap:16 }}>

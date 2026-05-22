@@ -10,7 +10,7 @@ const port = process.env.PORT || 5000;
 
 connectDB()
   .then(() => {
-    // Run idempotent bootstrap to create initial super admin if needed.
+    // Run idempotent bootstrap to create initial super admin if needed
     // This will not modify existing users and will safely skip if ENV vars missing.
     createInitialSuperAdmin()
       .catch((err) => console.error("[bootstrap] Unexpected error:", err))
