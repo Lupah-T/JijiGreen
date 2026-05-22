@@ -1,140 +1,104 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Leaf, Eye, EyeOff, ArrowRight, Recycle, Star, Shield } from "lucide-react";
+import { authService } from "../../services/authService.js";
 import { useAuth } from "../../hooks/useAuth.js";
-import { validateLoginForm } from "../../utils/validators.js";
-import { Leaf, Eye, EyeOff, Recycle, Trophy, Shield } from "lucide-react";
-
-const FEATURES = [
-  { icon: <Recycle size={16} />, text: "Track every gram of recyclables you submit" },
-  { icon: <Trophy  size={16} />, text: "Earn eco-points and climb the leaderboard" },
-  { icon: <Shield  size={16} />, text: "Verified collection with QR-code technology" },
-];
 
 export default function Login() {
-  const { login } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: "", password: "" });
-  const [errors, setErrors] = useState({});
-  const [message, setMessage] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const { setUser } = useAuth();
+  const [form, setForm]   = useState({ email: "", password: "" });
+  const [show, setShow]   = useState(false);
+  const [err, setErr]     = useState("");
+  const [busy, setBusy]   = useState(false);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setMessage("");
+  const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
 
-    const validationErrors = validateLoginForm(form);
-    setErrors(validationErrors);
-    if (Object.keys(validationErrors).length > 0) return;
-
-    setIsSubmitting(true);
+  const submit = async (e) => {
+    e.preventDefault();
+    setErr(""); setBusy(true);
     try {
-      const data = await login({ ...form, email: form.email.trim() });
-      localStorage.setItem("role", data.user.role);
-      navigate(`/${data.user.role}/dashboard`);
-    } catch (error) {
-      setErrors(error.fieldErrors || {});
-      setMessage(error.message);
-    } finally {
-      setIsSubmitting(false);
-    }
+      const r = await authService.login(form);
+      if (r.success && r.user) {
+        setUser(r.user);
+        localStorage.setItem("role", r.user.role);
+        navigate(`/${r.user.role}/dashboard`);
+      }
+    } catch (ex) {
+      setErr(ex.message || "Invalid email or password.");
+    } finally { setBusy(false); }
   };
 
   return (
     <div className="auth-shell">
       {/* Brand panel */}
-      <div className="auth-brand-panel">
-        <div className="auth-brand-logo">
-          <Leaf size={24} /> JijiGreen
-        </div>
-        <h2>Welcome back,<br />eco champion.</h2>
-        <p>Sign in to track your recycling impact, claim rewards, and keep climbing the leaderboard.</p>
-        <div className="auth-features">
-          {FEATURES.map((f) => (
-            <div className="auth-feature-item" key={f.text}>
-              <div className="auth-feature-icon">{f.icon}</div>
-              <span>{f.text}</span>
-            </div>
-          ))}
+      <div className="auth-panel">
+        <div style={{ position:"relative", zIndex:1 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:40 }}>
+            <Leaf size={28} style={{ color:"var(--g-400)" }} />
+            <span style={{ fontFamily:"var(--font-heading)", fontWeight:800, fontSize:22, color:"#fff" }}>JijiGreen</span>
+          </div>
+          <h2 style={{ fontFamily:"var(--font-heading)", fontSize:40, fontWeight:900, color:"#fff", lineHeight:1.1, marginBottom:16 }}>
+            Recycling<br/>rewarded.
+          </h2>
+          <p style={{ color:"rgba(255,255,255,.65)", fontSize:15, lineHeight:1.7, maxWidth:320, marginBottom:40 }}>
+            Join 500+ Kenyans earning eco-points for verified recycling. Real rewards, real impact.
+          </p>
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+            {[
+              { I:Recycle, t:"Submit recyclables at 50+ verified points across Kenya" },
+              { I:Star,    t:"Earn points instantly — redeemable for airtime & vouchers" },
+              { I:Shield,  t:"QR-verified submissions, fraud-proof and transparent" },
+            ].map(({ I, t }) => (
+              <div key={t} style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
+                <div style={{ width:32, height:32, borderRadius:8, background:"rgba(74,222,128,.15)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  <I size={16} style={{ color:"var(--g-400)" }} />
+                </div>
+                <p style={{ fontSize:13, color:"rgba(255,255,255,.6)", lineHeight:1.6 }}>{t}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Form panel */}
       <div className="auth-form-panel">
-        <form className="auth-card fade-in" noValidate onSubmit={handleSubmit} id="login-form">
+        <div className="auth-form">
           <div>
-            <h1>Sign in</h1>
-            <p className="subtitle" style={{ marginTop: 6 }}>
-              Don&apos;t have an account?{" "}
-              <Link to="/register" style={{ color: "var(--clr-emerald)", fontWeight: 600 }}>
-                Create one free
-              </Link>
+            <h1 style={{ fontFamily:"var(--font-heading)", fontSize:28, fontWeight:800, marginBottom:6 }}>Welcome back</h1>
+            <p style={{ color:"var(--text-muted)", fontSize:14 }}>
+              Don't have an account? <Link to="/register" style={{ color:"var(--g-700)", fontWeight:600 }}>Sign up free</Link>
             </p>
           </div>
 
-          {message && <p className="alert error" role="alert">{message}</p>}
+          {err && <div className="alert alert-error">{err}</div>}
 
-          <label className="field">
-            <span>Email address</span>
-            <input
-              id="login-email"
-              className="input"
-              type="email"
-              placeholder="you@example.com"
-              value={form.email}
-              autoComplete="email"
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-            {errors.email && <small className="field-error">{errors.email}</small>}
-          </label>
-
-          <label className="field">
-            <span>Password</span>
-            <div style={{ position: "relative" }}>
-              <input
-                id="login-password"
-                className="input"
-                type={showPassword ? "text" : "password"}
-                placeholder="Enter your password"
-                value={form.password}
-                autoComplete="current-password"
-                style={{ paddingRight: 44 }}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-              />
-              <button
-                type="button"
-                aria-label="Toggle password visibility"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
-                  background: "none", border: "none", cursor: "pointer",
-                  color: "var(--clr-subtle)", display: "flex", alignItems: "center",
-                }}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+          <form onSubmit={submit} style={{ display:"grid", gap:16 }}>
+            <div className="field">
+              <label className="field-label" htmlFor="login-email">Email address</label>
+              <input id="login-email" className="input" type="email" placeholder="you@example.com" autoComplete="email" required value={form.email} onChange={set("email")} />
             </div>
-            {errors.password && <small className="field-error">{errors.password}</small>}
-          </label>
+            <div className="field">
+              <label className="field-label" htmlFor="login-password">Password</label>
+              <div style={{ position:"relative" }}>
+                <input id="login-password" className="input" type={show?"text":"password"} placeholder="••••••••" autoComplete="current-password" required value={form.password} style={{ paddingRight:44 }} onChange={set("password")} />
+                <button type="button" onClick={()=>setShow(!show)} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color:"var(--text-soft)", background:"none", border:"none", cursor:"pointer" }}>
+                  {show ? <EyeOff size={17}/> : <Eye size={17}/>}
+                </button>
+              </div>
+              <div style={{ textAlign:"right" }}>
+                <Link to="/forgot-password" style={{ fontSize:13, color:"var(--g-700)", fontWeight:600 }}>Forgot password?</Link>
+              </div>
+            </div>
+            <button className="btn btn-primary" type="submit" disabled={busy} style={{ justifyContent:"center", padding:13, marginTop:4 }}>
+              {busy ? <span className="spinner spinner-white"/> : <><ArrowRight size={16}/> Sign in</>}
+            </button>
+          </form>
 
-          <div style={{ textAlign: "right", marginTop: -8 }}>
-            <Link to="/forgot-password" style={{ fontSize: 13, color: "var(--clr-emerald)", fontWeight: 600 }}>
-              Forgot password?
-            </Link>
-          </div>
-
-          <button
-            id="login-submit"
-            className="button"
-            disabled={isSubmitting}
-            type="submit"
-            style={{ justifyContent: "center", padding: "13px" }}
-          >
-            {isSubmitting ? (
-              <><span className="spinner" /> Signing in…</>
-            ) : "Sign in"}
-          </button>
-        </form>
+          <p style={{ fontSize:12, color:"var(--text-soft)", textAlign:"center" }}>
+            By signing in you agree to our <a href="#" style={{ color:"var(--g-700)" }}>Terms</a> and <a href="#" style={{ color:"var(--g-700)" }}>Privacy Policy</a>.
+          </p>
+        </div>
       </div>
     </div>
   );

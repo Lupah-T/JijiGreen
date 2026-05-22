@@ -1,61 +1,80 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth.js";
-import EcoPoints from "../../components/student/EcoPoints.jsx";
-import StudentCard from "../../components/student/StudentCard.jsx";
-import Leaderboard from "../../components/student/Leaderboard.jsx";
-import { Recycle, TrendingUp, Leaf, X, QrCode, Scale, CheckCircle } from "lucide-react";
+import { Recycle, TrendingUp, Leaf, X, QrCode, Scale, CheckCircle,
+         AlertCircle, Zap, Award, MapPin, ChevronRight } from "lucide-react";
+import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 
-// Demo leaderboard data for presentation
-const DEMO_ENTRIES = [
-  { _id: "1", user: { name: "Amina Odhiambo", school: "Westlands Academy" }, points: 3420 },
-  { _id: "2", user: { name: "Brian Mutua",    school: "Nairobi High School" }, points: 2870 },
-  { _id: "3", user: { name: "Chloe Wanjiku",  school: "Karen C School" },      points: 2150 },
-  { _id: "4", user: { name: "David Kamau",    school: "Strathmore Prep" },      points: 1600 },
-  { _id: "5", user: { name: "Eve Adhiambo",   school: "Lavington School" },     points: 980  },
+/* ────────────────────────────────── Demo data */
+const CHART_DATA = [
+  {w:"Mon",kg:1.2},{w:"Tue",kg:0.8},{w:"Wed",kg:2.1},{w:"Thu",kg:1.5},{w:"Fri",kg:0.9},{w:"Sat",kg:3.2},{w:"Sun",kg:1.8},
 ];
-
-const DEMO_ACTIVITY = [
-  { id: 1, text: "Submitted 1.2 kg of plastic bottles", time: "Today, 10:34 AM",   pts: "+24" },
-  { id: 2, text: "Earned 'Recycler' badge",             time: "Yesterday, 4:10 PM", pts: "+10" },
-  { id: 3, text: "Redeemed Safaricom 50 Airtime",       time: "Mon, 9:00 AM",       pts: "-200" },
-  { id: 4, text: "Submitted 0.8 kg aluminium cans",    time: "Sun, 2:45 PM",        pts: "+16" },
+const LEADERBOARD = [
+  {id:"1",name:"Amina Odhiambo",school:"Westlands Academy",pts:3420,av:"AO"},
+  {id:"2",name:"Brian Mutua",school:"Nairobi High School",pts:2870,av:"BM"},
+  {id:"3",name:"Chloe Wanjiku",school:"Karen C School",pts:2150,av:"CW"},
+  {id:"4",name:"David Kamau",school:"Strathmore Prep",pts:1600,av:"DK"},
+  {id:"5",name:"Eve Adhiambo",school:"Lavington School",pts:980,av:"EA"},
 ];
-
+const ACTIVITY = [
+  {id:1,text:"Submitted 1.2 kg plastic bottles",time:"Today, 10:34 AM",pts:"+24"},
+  {id:2,text:"Earned 'First Recycler' badge",time:"Yesterday, 4:10 PM",pts:"+10"},
+  {id:3,text:"Redeemed Safaricom 50 Airtime",time:"Mon, 9:00 AM",pts:"-200"},
+  {id:4,text:"Submitted 0.8 kg aluminium cans",time:"Sun, 2:45 PM",pts:"+16"},
+];
+const NEARBY = [
+  {name:"Naivas Westlands",type:"Supermarket",dist:"0.4 km",open:true},
+  {name:"UoN Main Campus",type:"University",dist:"1.1 km",open:true},
+  {name:"Sarit Centre Kiosk",type:"Kiosk",dist:"1.8 km",open:false},
+];
 const WASTE_TYPES = [
-  { value: "plastic",   label: "Plastic Bottles",  emoji: "🧴", pts: "20 pts/kg" },
-  { value: "aluminium", label: "Aluminium Cans",   emoji: "🥤", pts: "30 pts/kg" },
-  { value: "paper",     label: "Paper / Cardboard",emoji: "📄", pts: "10 pts/kg" },
-  { value: "glass",     label: "Glass",            emoji: "🫙", pts: "15 pts/kg" },
+  {v:"plastic",l:"Plastic Bottles",e:"🧴",pts:20},
+  {v:"aluminium",l:"Aluminium Cans",e:"🥤",pts:30},
+  {v:"paper",l:"Paper / Cardboard",e:"📄",pts:10},
+  {v:"glass",l:"Glass",e:"🫙",pts:15},
 ];
+const LEVELS=[
+  {name:"Seedling",min:0,max:500},
+  {name:"Sprouting",min:500,max:1500},
+  {name:"Growing",min:1500,max:3000},
+  {name:"Thriving",min:3000,max:5000},
+  {name:"Champion",min:5000,max:10000},
+];
+const MEDALS=["🥇","🥈","🥉"];
 
-/* ── Simple Modal wrapper ── */
-function Modal({ open, onClose, title, children }) {
-  useEffect(() => {
-    const handler = (e) => { if (e.key === "Escape") onClose(); };
-    if (open) document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+/* ── Helpers ── */
+function getLevel(pts){return LEVELS.find(l=>pts>=l.min&&pts<l.max)||LEVELS[LEVELS.length-1];}
+function initials(n=""){return n.split(" ").slice(0,2).map(w=>w[0]).join("").toUpperCase()||"U";}
+function getTier(pts){
+  if(pts>=5000)return{label:"Gold",bg:"#fef9c3",color:"#713f12"};
+  if(pts>=1000)return{label:"Silver",bg:"#f1f5f9",color:"#334155"};
+  return{label:"Bronze",bg:"#fef3c7",color:"#92400e"};
+}
 
-  if (!open) return null;
-  return (
-    <div
-      style={{
-        position: "fixed", inset: 0, zIndex: 200,
-        background: "rgba(10,34,24,0.55)", backdropFilter: "blur(4px)",
-        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-      }}
-      onClick={onClose}
-    >
-      <div
-        className="panel scale-in"
-        style={{ maxWidth: 520, width: "100%", padding: 28, position: "relative" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 20, fontWeight: 700, margin: 0 }}>{title}</h2>
-          <button onClick={onClose} className="button-ghost" aria-label="Close">
-            <X size={20} />
-          </button>
+/* ── Animated counter ── */
+function Counter({to}){
+  const[v,setV]=useState(0);
+  useEffect(()=>{
+    let cur=0; const inc=to/60;
+    const t=setInterval(()=>{ cur+=inc; if(cur>=to){setV(to);clearInterval(t);}else setV(Math.floor(cur)); },16);
+    return()=>clearInterval(t);
+  },[to]);
+  return <>{v.toLocaleString()}</>;
+}
+
+/* ── Modal shell ── */
+function Modal({open,onClose,title,children}){
+  useEffect(()=>{
+    const fn=e=>{if(e.key==="Escape")onClose();};
+    if(open)document.addEventListener("keydown",fn);
+    return()=>document.removeEventListener("keydown",fn);
+  },[open,onClose]);
+  if(!open)return null;
+  return(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e=>e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">{title}</span>
+          <button onClick={onClose} className="btn btn-ghost btn-icon"><X size={18}/></button>
         </div>
         {children}
       </div>
@@ -63,89 +82,60 @@ function Modal({ open, onClose, title, children }) {
   );
 }
 
-/* ── Waste Submission Modal ── */
-function SubmitWasteModal({ open, onClose, userName }) {
-  const [wasteType, setWasteType] = useState("plastic");
-  const [weight, setWeight]       = useState("");
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleSubmit = (e) => {
+/* ── Submit Waste Modal ── */
+function SubmitModal({open,onClose}){
+  const[type,setType]=useState("plastic");
+  const[weight,setWeight]=useState("");
+  const[done,setDone]=useState(false);
+  const pts=weight?Math.round(parseFloat(weight)||0)*WASTE_TYPES.find(w=>w.v===type)?.pts:0;
+  const submit=e=>{
     e.preventDefault();
-    if (!weight || parseFloat(weight) <= 0) return;
-    setSubmitted(true);
-    setTimeout(() => { setSubmitted(false); setWeight(""); onClose(); }, 2200);
+    if(!weight||parseFloat(weight)<=0)return;
+    setDone(true);
+    setTimeout(()=>{setDone(false);setWeight("");onClose();},2400);
   };
-
-  return (
+  return(
     <Modal open={open} onClose={onClose} title="Submit Recyclables">
-      {submitted ? (
-        <div style={{ textAlign: "center", padding: "24px 0" }}>
-          <CheckCircle size={48} style={{ color: "var(--clr-emerald)", margin: "0 auto 12px" }} />
-          <div style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: 18, marginBottom: 4 }}>
-            Submission Sent!
-          </div>
-          <p style={{ color: "var(--clr-muted)", fontSize: 14 }}>
-            A collector will verify your waste and award your eco-points shortly.
-          </p>
+      {done?(
+        <div style={{textAlign:"center",padding:"24px 0"}}>
+          <CheckCircle size={52} style={{color:"var(--g-600)",margin:"0 auto 12px"}}/>
+          <div style={{fontFamily:"var(--font-heading)",fontWeight:700,fontSize:18,marginBottom:8}}>Submission Sent!</div>
+          <p style={{color:"var(--text-muted)",fontSize:14}}>A collector will verify and award your {pts} eco-points shortly.</p>
         </div>
-      ) : (
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 18 }}>
-          <p style={{ color: "var(--clr-muted)", fontSize: 14, margin: 0 }}>
-            Select the type of waste and enter the weight. A verified collector at your nearest drop-off point will confirm your submission.
-          </p>
-
-          {/* Waste type */}
+      ):(
+        <form onSubmit={submit} style={{display:"grid",gap:18}}>
+          <p style={{color:"var(--text-muted)",fontSize:14,margin:0}}>Select waste type and estimated weight. A collector at your nearest drop-off will confirm.</p>
           <div className="field">
-            <span>Waste Type</span>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {WASTE_TYPES.map((w) => (
-                <button key={w.value} type="button"
-                  onClick={() => setWasteType(w.value)}
-                  style={{
-                    border: wasteType === w.value ? "2px solid var(--clr-emerald)" : "2px solid #e2e8f0",
-                    background: wasteType === w.value ? "var(--clr-success-bg)" : "var(--clr-white)",
-                    borderRadius: "var(--r-md)", padding: "10px 12px", cursor: "pointer",
-                    display: "flex", alignItems: "center", gap: 8, transition: "all 180ms",
-                    color: wasteType === w.value ? "var(--clr-emerald)" : "var(--clr-muted)",
-                    fontWeight: 600, fontSize: 13,
-                  }}
-                >
-                  <span style={{ fontSize: 20 }}>{w.emoji}</span>
-                  <div>
-                    <div>{w.label}</div>
-                    <div style={{ fontSize: 11, fontWeight: 400, opacity: 0.7 }}>{w.pts}</div>
-                  </div>
+            <span className="field-label">Waste Type</span>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              {WASTE_TYPES.map(w=>(
+                <button key={w.v} type="button" onClick={()=>setType(w.v)} style={{
+                  border:`2px solid ${type===w.v?"var(--g-600)":"var(--border)"}`,
+                  background:type===w.v?"var(--g-50)":"#fff",
+                  borderRadius:"var(--r-md)",padding:"10px 12px",cursor:"pointer",
+                  display:"flex",alignItems:"center",gap:8,transition:"all 180ms",
+                  color:type===w.v?"var(--g-700)":"var(--text-muted)",fontWeight:600,fontSize:13,
+                }}>
+                  <span style={{fontSize:20}}>{w.e}</span>
+                  <div><div>{w.l}</div><div style={{fontSize:11,opacity:.7}}>{w.pts} pts/kg</div></div>
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Weight */}
-          <label className="field">
-            <span>Estimated Weight (kg)</span>
-            <div style={{ position: "relative" }}>
-              <input className="input" type="number" min="0.1" step="0.1"
-                placeholder="e.g. 1.5"
-                value={weight}
-                style={{ paddingRight: 44 }}
-                onChange={(e) => setWeight(e.target.value)}
-              />
-              <Scale size={17} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: "var(--clr-subtle)" }} />
+          <div className="field">
+            <span className="field-label">Weight (kg)</span>
+            <div style={{position:"relative"}}>
+              <input className="input" type="number" min=".1" step=".1" placeholder="e.g. 1.5" value={weight} style={{paddingRight:44}} onChange={e=>setWeight(e.target.value)}/>
+              <Scale size={16} style={{position:"absolute",right:14,top:"50%",transform:"translateY(-50%)",color:"var(--text-soft)"}}/>
             </div>
-          </label>
-
-          {weight && parseFloat(weight) > 0 && (
-            <div style={{
-              background: "var(--clr-success-bg)", border: "1px solid var(--clr-border)",
-              borderRadius: "var(--r-md)", padding: "10px 14px", fontSize: 13,
-              color: "var(--clr-emerald)", fontWeight: 600,
-            }}>
-              Estimated reward: ~{Math.round(parseFloat(weight) * { plastic: 20, aluminium: 30, paper: 10, glass: 15 }[wasteType])} eco-points
+          </div>
+          {pts>0&&(
+            <div style={{background:"var(--g-50)",border:"1px solid var(--g-200)",borderRadius:"var(--r-md)",padding:"10px 14px",fontSize:13,color:"var(--g-800)",fontWeight:600}}>
+              Estimated reward: ~{pts} eco-points 🌱
             </div>
           )}
-
-          <button className="button" type="submit" style={{ justifyContent: "center", padding: "12px" }}>
-            <Recycle size={16} /> Submit Waste
+          <button className="btn btn-primary" type="submit" style={{justifyContent:"center",padding:13}}>
+            <Recycle size={16}/> Submit Waste
           </button>
         </form>
       )}
@@ -153,146 +143,225 @@ function SubmitWasteModal({ open, onClose, userName }) {
   );
 }
 
-/* ── QR Code Modal ── */
-function QrModal({ open, onClose, user }) {
-  // Simple SVG QR placeholder — in production use qrcode library
-  const userId = user?.id || user?._id || "DEMO-USER";
-  const displayId = typeof userId === "string" ? userId.slice(-8).toUpperCase() : "DEMO";
-
-  return (
-    <Modal open={open} onClose={onClose} title="Your Eco ID & QR Code">
-      <div style={{ textAlign: "center", padding: "8px 0 16px" }}>
-        {/* QR visual */}
-        <div style={{
-          width: 200, height: 200, margin: "0 auto 20px",
-          border: "3px solid var(--clr-forest)",
-          borderRadius: "var(--r-md)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          background: "white", position: "relative", overflow: "hidden",
-        }}>
-          <QrCode size={140} style={{ color: "var(--clr-forest)", opacity: 0.85 }} />
-          {/* Corner marks */}
-          {[
-            { top: 8,   left: 8,   borderTop: "3px solid var(--clr-emerald)",   borderLeft:   "3px solid var(--clr-emerald)" },
-            { top: 8,   right: 8,  borderTop: "3px solid var(--clr-emerald)",   borderRight:  "3px solid var(--clr-emerald)" },
-            { bottom: 8, left: 8,  borderBottom: "3px solid var(--clr-emerald)", borderLeft:  "3px solid var(--clr-emerald)" },
-            { bottom: 8, right: 8, borderBottom: "3px solid var(--clr-emerald)", borderRight: "3px solid var(--clr-emerald)" },
-          ].map((style, i) => (
-            <div key={i} style={{ position: "absolute", width: 20, height: 20, ...style }} />
-          ))}
+/* ── QR Modal ── */
+function QrModal({open,onClose,user}){
+  const id=(user?.id||user?._id||"DEMO").toString().slice(-8).toUpperCase();
+  return(
+    <Modal open={open} onClose={onClose} title="Your Eco ID">
+      <div style={{textAlign:"center",padding:"8px 0 16px"}}>
+        <div className="qr-frame" style={{width:180,height:180,margin:"0 auto 20px"}}>
+          <QrCode size={130} style={{color:"var(--g-900)",opacity:.9}}/>
+          <div className="qr-corner qr-corner-tl"/><div className="qr-corner qr-corner-tr"/>
+          <div className="qr-corner qr-corner-bl"/><div className="qr-corner qr-corner-br"/>
         </div>
-
-        <div style={{
-          fontFamily: "monospace", fontSize: 18, fontWeight: 700,
-          letterSpacing: "0.15em", color: "var(--clr-forest)",
-          background: "var(--clr-surface)", borderRadius: "var(--r-sm)",
-          padding: "6px 16px", display: "inline-block", marginBottom: 12,
-        }}>
-          ECO-{displayId}
+        <div style={{fontFamily:"monospace",fontSize:18,fontWeight:700,letterSpacing:".15em",background:"var(--bg-subtle)",borderRadius:"var(--r-sm)",padding:"6px 16px",display:"inline-block",marginBottom:12}}>
+          ECO-{id}
         </div>
-
-        <p style={{ color: "var(--clr-muted)", fontSize: 13, maxWidth: 320, margin: "0 auto 20px" }}>
-          Show this QR code to any verified collector when dropping off recyclables.
-          They will scan it to award your eco-points instantly.
+        <p style={{color:"var(--text-muted)",fontSize:13,maxWidth:300,margin:"0 auto 20px"}}>
+          Show this QR code to any verified collector when dropping off recyclables. They'll scan it to award your points instantly.
         </p>
-
-        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-          <button
-            className="button"
-            onClick={() => window.print()}
-            style={{ fontSize: 13, padding: "9px 20px" }}
-          >
-            Print / Save
-          </button>
-          <button className="button-outline" onClick={onClose} style={{ fontSize: 13, padding: "9px 20px" }}>
-            Close
-          </button>
+        <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+          <button className="btn btn-primary btn-sm" onClick={()=>window.print()}>Print / Save</button>
+          <button className="btn btn-outline btn-sm" onClick={onClose}>Close</button>
         </div>
       </div>
     </Modal>
   );
 }
 
-/* ── Main Dashboard ── */
-export default function StudentDashboard() {
-  const { user } = useAuth();
-  const points = user?.ecoPoints || 0;
-
-  const [wasteOpen, setWasteOpen] = useState(false);
-  const [qrOpen,    setQrOpen]    = useState(false);
-
-  return (
-    <>
-      {/* Modals */}
-      <SubmitWasteModal open={wasteOpen} onClose={() => setWasteOpen(false)} userName={user?.name} />
-      <QrModal         open={qrOpen}    onClose={() => setQrOpen(false)}    user={user} />
-
-      {/* Page header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 className="page-title">
-            Welcome back{user?.name ? `, ${user.name.split(" ")[0]}` : ""}! 👋
-          </h1>
-          <p style={{ color: "var(--clr-muted)", marginTop: 4 }}>
-            Here&apos;s your recycling impact at a glance.
-          </p>
+/* ── Eco Ring SVG ── */
+function EcoRing({points}){
+  const lvl=getLevel(points);
+  const pct=Math.min(((points-lvl.min)/(lvl.max-lvl.min))*100,100);
+  const R=52, C=2*Math.PI*R;
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:20}}>
+      <div style={{display:"flex",alignItems:"center",gap:24}}>
+        <svg width={130} height={130} style={{transform:"rotate(-90deg)",flexShrink:0}}>
+          <circle cx={65} cy={65} r={R} fill="none" stroke="var(--bg-muted)" strokeWidth={10}/>
+          <circle cx={65} cy={65} r={R} fill="none"
+            stroke="url(#eco-gr)" strokeWidth={10} strokeLinecap="round"
+            strokeDasharray={C} strokeDashoffset={C*(1-pct/100)}
+            style={{transition:"stroke-dashoffset 1.2s ease"}}
+          />
+          <defs>
+            <linearGradient id="eco-gr" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="var(--g-600)"/>
+              <stop offset="100%" stopColor="var(--lime-dk)"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div className="eco-ring-wrap">
+          <span className="eco-ring-label">Eco Points</span>
+          <div className="eco-ring-value"><Counter to={points}/></div>
+          <div className="eco-ring-level"><Zap size={13} style={{color:"var(--lime-dk)"}}/> {lvl.name}</div>
         </div>
-        <button id="submit-waste-btn" className="button" onClick={() => setWasteOpen(true)}>
-          <Recycle size={16} /> Submit Waste
+      </div>
+      <div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"var(--text-muted)",marginBottom:6}}>
+          <span>{points.toLocaleString()} pts</span>
+          <span>Next: {lvl.max.toLocaleString()}</span>
+        </div>
+        <div className="progress-track">
+          <div className="progress-fill" style={{width:`${pct}%`}}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main ── */
+export default function StudentDashboard(){
+  const{user}=useAuth();
+  const pts=user?.ecoPoints||0;
+  const tier=getTier(pts);
+  const[waste,setWaste]=useState(false);
+  const[qr,setQr]=useState(false);
+
+  return(
+    <>
+      <SubmitModal open={waste} onClose={()=>setWaste(false)}/>
+      <QrModal     open={qr}   onClose={()=>setQr(false)} user={user}/>
+
+      {/* Header */}
+      <div className="dashboard-header">
+        <div>
+          <h1 className="page-title">Welcome back{user?.name?`, ${user.name.split(" ")[0]}`:""}! 👋</h1>
+          <p className="page-subtitle">Your recycling impact at a glance.</p>
+        </div>
+        <button className="btn btn-primary" id="submit-waste-btn" onClick={()=>setWaste(true)}>
+          <Recycle size={15}/> Submit Waste
         </button>
       </div>
 
-      {/* Top stats row */}
-      <div className="dashboard-grid-3">
+      {/* KPI row */}
+      <div className="dash-kpi-row">
         {[
-          { icon: <Recycle    size={22} style={{ color: "#16a34a" }} />, bg: "#f0fdf4", label: "Total Submissions",  value: "12",     trend: "+3 this week"    },
-          { icon: <TrendingUp size={22} style={{ color: "#3b82f6" }} />, bg: "#eff6ff", label: "Kg Collected",      value: "8.4 kg", trend: "+1.2 kg this week" },
-          { icon: <Leaf       size={22} style={{ color: "#84cc16" }} />, bg: "#f7fee7", label: "Trees Sponsored",   value: "2",      trend: "Keep going!"       },
-        ].map((stat) => (
-          <div key={stat.label} className="stat-card fade-in">
-            <div className="stat-card-header">
-              <div className="stat-label">{stat.label}</div>
-              <div style={{ width: 40, height: 40, borderRadius: "var(--r-md)", background: stat.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {stat.icon}
+          {icon:Recycle,   bg:"#f0fdf4",ic:"var(--g-600)", label:"Total Submissions",  v:"12",     trend:"+3 this week",  up:true},
+          {icon:TrendingUp,bg:"#eff6ff",ic:"#3b82f6",       label:"Kg Collected",       v:"8.4 kg", trend:"+1.2 kg",       up:true},
+          {icon:Leaf,      bg:"#f7fee7",ic:"var(--lime-dk)", label:"Trees Sponsored",   v:"2",      trend:"Keep going!",   up:true},
+          {icon:Award,     bg:"#fef9c3",ic:"#d97706",        label:"Badges Earned",     v:"5",      trend:"+1 this month", up:true},
+        ].map(s=>(
+          <div key={s.label} className="kpi-card animate-fade-up">
+            <div className="kpi-card-header">
+              <div>
+                <div className="kpi-label">{s.label}</div>
+                <div className="kpi-value" style={{marginTop:6}}>{s.v}</div>
+              </div>
+              <div className="kpi-icon" style={{background:s.bg}}>
+                <s.icon size={20} style={{color:s.ic}}/>
               </div>
             </div>
-            <div className="stat-value">{stat.value}</div>
-            <div className="stat-trend up">{stat.trend}</div>
+            <div className={`kpi-trend ${s.up?"up":"down"}`}>{s.up?"↑":"↓"} {s.trend}</div>
           </div>
         ))}
       </div>
 
-      {/* Main grid: EcoPoints + StudentCard */}
-      <div className="dashboard-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
-        <EcoPoints points={points} />
-        <StudentCard student={user} points={points} onViewQr={() => setQrOpen(true)} />
+      {/* Eco ring + Identity card */}
+      <div className="grid-2">
+        <div className="card"><EcoRing points={pts}/></div>
+        <div className="card" style={{display:"flex",flexDirection:"column",gap:16}}>
+          {/* Avatar row */}
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            {user?.avatarUrl?(
+              <img src={user.avatarUrl} alt="avatar" style={{width:52,height:52,borderRadius:"50%",objectFit:"cover",border:"2px solid var(--border-g)"}}/>
+            ):(
+              <div style={{width:52,height:52,borderRadius:"50%",background:"linear-gradient(135deg,var(--g-600),var(--lime-dk))",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--font-heading)",fontWeight:700,fontSize:18,color:"#fff",flexShrink:0}}>
+                {initials(user?.name||"")}
+              </div>
+            )}
+            <div style={{flex:1}}>
+              <div style={{fontFamily:"var(--font-heading)",fontWeight:700,fontSize:17}}>{user?.name||"Student"}</div>
+              <div style={{fontSize:13,color:"var(--text-muted)"}}>{user?.email||"—"}</div>
+            </div>
+            <span style={{background:tier.bg,color:tier.color,borderRadius:100,padding:"4px 12px",fontSize:12,fontWeight:700,flexShrink:0}}>
+              <Award size={11} style={{display:"inline",marginRight:4}}/>{tier.label}
+            </span>
+          </div>
+          {/* QR placeholder */}
+          <div style={{border:"1.5px dashed var(--border-g)",borderRadius:"var(--r-md)",padding:"12px 16px",background:"var(--g-50)",display:"flex",alignItems:"center",gap:12}}>
+            <QrCode size={26} style={{color:"var(--g-600)",flexShrink:0}}/>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:600,fontSize:13}}>Your QR Code</div>
+              <div style={{fontSize:12,color:"var(--text-muted)"}}>Show at any collection point</div>
+            </div>
+            <button id="view-qr-btn" className="btn btn-primary btn-sm" onClick={()=>setQr(true)}>
+              <QrCode size={13}/> View QR
+            </button>
+          </div>
+          {/* Nearby points */}
+          <div>
+            <div style={{fontSize:13,fontWeight:700,marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+              <MapPin size={13} style={{color:"var(--g-600)"}}/> Nearby Collection Points
+            </div>
+            {NEARBY.map(p=>(
+              <div key={p.name} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid var(--bg-subtle)"}}>
+                <div>
+                  <div style={{fontSize:13,fontWeight:600}}>{p.name}</div>
+                  <div style={{fontSize:11,color:"var(--text-soft)"}}>{p.type} · {p.dist}</div>
+                </div>
+                <span className={`badge ${p.open?"badge-green":"badge-gray"}`}>{p.open?"Open":"Closed"}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Bottom grid: Leaderboard + Activity */}
-      <div className="dashboard-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
-        <Leaderboard entries={DEMO_ENTRIES} title="Top Recyclers" />
-
-        {/* Recent Activity */}
-        <div className="panel">
-          <h3 style={{ fontFamily: "var(--font-heading)", fontSize: 17, fontWeight: 700, marginBottom: 16 }}>
-            Recent Activity
-          </h3>
-          {DEMO_ACTIVITY.map((a) => (
+      {/* Weekly chart + Activity */}
+      <div className="grid-2">
+        <div className="chart-container">
+          <div className="chart-title">Weekly Recycling</div>
+          <div className="chart-sub">Kg collected this week</div>
+          <ResponsiveContainer width="100%" height={180}>
+            <AreaChart data={CHART_DATA}>
+              <defs>
+                <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--g-600)" stopOpacity=".25"/>
+                  <stop offset="95%" stopColor="var(--g-600)" stopOpacity="0"/>
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="w" axisLine={false} tickLine={false} tick={{fontSize:12,fill:"var(--text-soft)"}}/>
+              <Tooltip contentStyle={{borderRadius:8,border:"1px solid var(--border)",fontSize:13}} formatter={v=>[`${v} kg`]}/>
+              <Area type="monotone" dataKey="kg" stroke="var(--g-600)" strokeWidth={2} fill="url(#cg)"/>
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="card">
+          <div className="section-header">
+            <span className="section-title">Recent Activity</span>
+          </div>
+          {ACTIVITY.map(a=>(
             <div key={a.id} className="activity-item">
-              <div className="activity-dot" />
-              <div style={{ flex: 1 }}>
+              <div className="activity-dot"/>
+              <div style={{flex:1}}>
                 <div className="activity-text">{a.text}</div>
-                <div className="activity-time">{a.time}</div>
+                <div className="activity-meta">{a.time}</div>
               </div>
-              <span style={{
-                fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: 14,
-                color: a.pts.startsWith("+") ? "var(--clr-emerald)" : "var(--clr-danger)",
-              }}>
+              <span style={{fontFamily:"var(--font-heading)",fontWeight:700,fontSize:13,color:a.pts.startsWith("+")?"var(--g-700)":"var(--danger)",flexShrink:0}}>
                 {a.pts} pts
               </span>
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Leaderboard */}
+      <div className="card">
+        <div className="section-header">
+          <span className="section-title">Top Recyclers</span>
+          <a href="/student/leaderboard" className="section-action">View all <ChevronRight size={13} style={{display:"inline"}}/></a>
+        </div>
+        {LEADERBOARD.map((e,i)=>(
+          <div key={e.id} className="lb-item">
+            <div className="lb-rank">{i<3?MEDALS[i]:<span style={{color:"var(--text-soft)"}}>{i+1}</span>}</div>
+            <div className="lb-avatar" style={{background:i===0?"linear-gradient(135deg,#f59e0b,#d97706)":i===1?"linear-gradient(135deg,#94a3b8,#64748b)":i===2?"linear-gradient(135deg,#c2830b,#a16207)":"linear-gradient(135deg,var(--g-600),var(--lime-dk))"}}>{e.av}</div>
+            <div style={{flex:1}}>
+              <div className="lb-name">{e.name}</div>
+              <div className="lb-sub">{e.school}</div>
+            </div>
+            <div className="lb-pts">{e.pts.toLocaleString()} pts</div>
+          </div>
+        ))}
       </div>
     </>
   );
