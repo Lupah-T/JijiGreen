@@ -64,7 +64,11 @@ export default function Sidebar() {
       {/* User */}
       {user && (
         <div className="sidebar-user">
-          <div className="sidebar-avatar">{initials(user.name)}</div>
+          {user.avatarUrl ? (
+            <img src={user.avatarUrl} alt={user.name || "User"} className="sidebar-avatar" />
+          ) : (
+            <div className="sidebar-avatar">{initials(user.name)}</div>
+          )}
           <div>
             <div className="sidebar-user-name">{user.name || "User"}</div>
             <div className="sidebar-user-role">{role}</div>

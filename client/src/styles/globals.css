@@ -325,6 +325,22 @@ input, textarea, select { font: inherit; }
   display: flex; align-items: center; justify-content: center;
   font-family: var(--font-heading); font-weight: 700; font-size: 14px; color: #fff;
 }
+/* When an <img> uses the sidebar-avatar class, ensure it fills and crops nicely */
+.sidebar-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
+}
+/* Also handle when the <img> itself carries the sidebar-avatar class */
+img.sidebar-avatar {
+  width: 38px;
+  height: 38px;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
+}
 .sidebar-user-name { font-size: 13px; font-weight: 600; color: #fff; }
 .sidebar-user-role { font-size: 11px; color: rgba(255,255,255,.45); text-transform: uppercase; letter-spacing: .06em; }
 .sidebar-nav { flex: 1; padding: 10px; display: flex; flex-direction: column; gap: 2px; }
