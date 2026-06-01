@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { CheckSquare, Recycle, Clock, AlertTriangle, QrCode, Scale, Save, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CheckSquare, Recycle, Clock, AlertTriangle, QrCode, Scale, Save, X, MapPin } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { getCollectionPoints } from "../../api/collectionPointApi.js";
 
 const CHART_DATA=[{d:"Mon",kg:12.4},{d:"Tue",kg:18.1},{d:"Wed",kg:9.7},{d:"Thu",kg:21.3},{d:"Fri",kg:15.8},{d:"Sat",kg:7.2},{d:"Sun",kg:11.0}];
 const PENDING=[
@@ -19,9 +20,19 @@ export default function CollectorDashboard(){
   const[type,setType]=useState("plastic");
   const[weight,setWeight]=useState("");
   const[studentId,setStudentId]=useState("");
+  const[collectionPoint,setCollectionPoint]=useState("");
+  const[collectionPoints,setCollectionPoints]=useState([]);
   const[done,setDone]=useState(false);
   const pts=weight?Math.round(parseFloat(weight)||0)*WASTE_TYPES.find(w=>w.v===type)?.pts:0;
-  const submit=e=>{e.preventDefault();if(!weight||!studentId)return;setDone(true);setTimeout(()=>{setDone(false);setWeight("");setStudentId("");},2500);};
+  const submit=e=>{e.preventDefault();if(!weight||!studentId||!collectionPoint)return;setDone(true);setTimeout(()=>{setDone(false);setWeight("");setStudentId("");},2500);};
+
+  useEffect(()=>{
+    getCollectionPoints().then(({data})=>{
+      const points = data.data || [];
+      setCollectionPoints(points);
+      if(points[0]?._id) setCollectionPoint(points[0]._id);
+    }).catch(()=>setCollectionPoints([]));
+  },[]);
 
   return(
     <>
@@ -67,6 +78,16 @@ export default function CollectorDashboard(){
                 <div style={{position:"relative"}}>
                   <input className="input" placeholder="Scan QR code or enter Student ID" value={studentId} style={{paddingRight:44}} onChange={e=>setStudentId(e.target.value)} required/>
                   <QrCode size={17} style={{position:"absolute",right:14,top:"50%",transform:"translateY(-50%)",color:"var(--text-soft)"}}/>
+                </div>
+              </div>
+              <div className="field">
+                <span className="field-label">Collection Point</span>
+                <div style={{position:"relative"}}>
+                  <select className="input" required value={collectionPoint} onChange={e=>setCollectionPoint(e.target.value)} style={{paddingRight:44}}>
+                    <option value="">Select assigned point</option>
+                    {collectionPoints.map(point=><option key={point._id} value={point._id}>{point.name} · {point.county}</option>)}
+                  </select>
+                  <MapPin size={17} style={{position:"absolute",right:14,top:"50%",transform:"translateY(-50%)",color:"var(--text-soft)",pointerEvents:"none"}}/>
                 </div>
               </div>
               <div className="field">

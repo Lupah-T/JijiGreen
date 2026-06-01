@@ -1,13 +1,29 @@
 import WasteSubmission from "../models/WasteSubmission.js";
 import User from "../models/User.js";
 import CollectorApplication from "../models/CollectorApplication.js";
+import CollectionPoint from "../models/CollectionPoint.js";
 import { calculateEcoPoints } from "../utils/calculations.js";
 import { writeAuditLog } from "../services/auditService.js";
 
 export const createWasteSubmission = async (req, res) => {
+  const collectionPoint = await CollectionPoint.findOne({
+    _id: req.body.collectionPoint,
+    status: "active",
+    assignedCollectors: req.user._id,
+  });
+
+  if (!collectionPoint) {
+    return res.status(403).json({ message: "Collector is not assigned to this active collection point" });
+  }
+
+  if (!collectionPoint.acceptedWasteTypes.includes(req.body.wasteType)) {
+    return res.status(422).json({ message: "Waste type is not accepted at this collection point" });
+  }
+
   const submission = await WasteSubmission.create({
     student: req.body.student,
     collector: req.user._id,
+    collectionPoint: collectionPoint._id,
     wasteType: req.body.wasteType,
     weightKg: req.body.weightKg,
     imageUrl: req.file ? `/uploads/${req.file.filename}` : undefined,

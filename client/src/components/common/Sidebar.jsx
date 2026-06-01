@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useContext } from "react";
 import { Leaf, LayoutDashboard, Star, Trophy, History, User,
          CheckSquare, ClipboardList, Users, School, BarChart2,
-         Gift, LogOut, Moon, Sun, ClipboardCheck } from "lucide-react";
+         Gift, LogOut, Moon, Sun, ClipboardCheck, MapPin } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
 import { ThemeContext } from "../../context/ThemeContext.jsx";
 
@@ -11,6 +11,7 @@ const NAV = {
     { to: "/student/dashboard",   label: "Dashboard",   icon: LayoutDashboard },
     { to: "/student/rewards",     label: "Rewards",     icon: Star },
     { to: "/student/leaderboard", label: "Leaderboard", icon: Trophy },
+    { to: "/student/collection-points", label: "Collection Points", icon: MapPin },
     { to: "/student/apply-collector", label: "Apply Collector", icon: ClipboardCheck },
     { to: "/student/history",     label: "History",     icon: History },
     { to: "/student/profile",     label: "Profile",     icon: User },
@@ -23,12 +24,14 @@ const NAV = {
   school_admin: [
     { to: "/admin/dashboard", label: "Dashboard",  icon: LayoutDashboard },
     { to: "/admin/schools",   label: "Schools",     icon: School },
+    { to: "/admin/collection-points", label: "Collection Points", icon: MapPin },
     { to: "/admin/analytics", label: "Analytics",   icon: BarChart2 },
   ],
   operations_admin: [
     { to: "/admin/dashboard", label: "Dashboard",  icon: LayoutDashboard },
     { to: "/admin/users",     label: "Users",       icon: Users },
     { to: "/admin/schools",   label: "Schools",     icon: School },
+    { to: "/admin/collection-points", label: "Collection Points", icon: MapPin },
     { to: "/admin/analytics", label: "Analytics",   icon: BarChart2 },
     { to: "/admin/rewards",   label: "Rewards",     icon: Gift },
   ],
@@ -36,6 +39,7 @@ const NAV = {
     { to: "/admin/dashboard", label: "Dashboard",  icon: LayoutDashboard },
     { to: "/admin/users",     label: "Users",       icon: Users },
     { to: "/admin/schools",   label: "Schools",     icon: School },
+    { to: "/admin/collection-points", label: "Collection Points", icon: MapPin },
     { to: "/admin/analytics", label: "Analytics",   icon: BarChart2 },
     { to: "/admin/rewards",   label: "Rewards",     icon: Gift },
   ],
