@@ -1,17 +1,56 @@
-import { Users, School, Recycle, Star, BarChart2, AlertTriangle, Download, TrendingUp } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertTriangle, BarChart2, Download, Recycle, School, Star, TrendingUp, Users } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { getAdminDashboard } from "../../api/adminApi.js";
 
-const TREND=[{m:"Jan",waste:240},{m:"Feb",waste:320},{m:"Mar",waste:280},{m:"Apr",waste:450},{m:"May",waste:520},{m:"Jun",waste:610}];
-const WASTE_TYPES_DATA=[{name:"Plastic",value:42,color:"#16a34a"},{name:"Aluminium",value:28,color:"#3b82f6"},{name:"Paper",value:18,color:"#f59e0b"},{name:"Glass",value:12,color:"#8b5cf6"}];
-const RECENT_USERS=[
-  {name:"Amina Odhiambo",role:"student",school:"Westlands Academy",joined:"Today",av:"AO"},
-  {name:"Brian Mutua",   role:"collector",school:"—",             joined:"Yesterday",av:"BM"},
-  {name:"Chloe Wanjiku", role:"student",school:"Karen C School",  joined:"2 days ago",av:"CW"},
-  {name:"David Kamau",   role:"student",school:"Strathmore Prep", joined:"3 days ago",av:"DK"},
-];
 const ROLE_COLOR={student:"badge-green",collector:"badge-blue",school_admin:"badge-gray",operations_admin:"badge-amber",super_admin:"badge-red"};
 
+const colorPalette = ["#16a34a", "#3b82f6", "#f59e0b", "#8b5cf6", "#06b6d4", "#ef4444"];
+
 export default function AdminDashboard(){
+  const [analytics, setAnalytics] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    getAdminDashboard()
+      .then(({ data }) => {
+        if (!active) return;
+        setAnalytics(data.data || data || null);
+      })
+      .catch(() => {
+        if (active) setAnalytics(null);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const trendData = analytics?.monthlyTrend || [];
+  const wasteData = (analytics?.wasteByType || []).map((item, index) => ({
+    name: item.wasteType ? item.wasteType.replace(/_/g, " ") : "Other",
+    value: Number(item.weight || 0),
+    color: colorPalette[index % colorPalette.length],
+  }));
+  const recentUsers = analytics?.recentUsers || [];
+  const recentSubmissions = analytics?.recentSubmissions || [];
+
+  const stats = useMemo(() => ({
+    students: analytics?.students || 0,
+    schools: analytics?.schools || 0,
+    submissions: analytics?.submissions || 0,
+    totalWasteKg: Number(analytics?.totalWasteKg || 0),
+  }), [analytics]);
+
+  if (loading) {
+    return <div className="loader"><span className="spinner" /> Loading admin dashboard...</div>;
+  }
+
   return(
     <>
       <div className="dashboard-header">
@@ -25,12 +64,12 @@ export default function AdminDashboard(){
       {/* KPIs */}
       <div className="dash-kpi-row">
         {[
-          {icon:Users,      bg:"#eff6ff",ic:"#3b82f6", label:"Total Users",      v:"248",    trend:"↑ +12 this month",up:true},
-          {icon:School,     bg:"#f0fdf4",ic:"var(--g-600)",label:"Partner Schools",v:"47",   trend:"↑ +3 this month",up:true},
-          {icon:Recycle,    bg:"#fef9c3",ic:"#d97706", label:"Waste Collected",  v:"2.1 t",  trend:"↑ +340 kg",up:true},
-          {icon:Star,       bg:"#fdf4ff",ic:"#a21caf", label:"Points Awarded",   v:"82,400", trend:"↑ +6,200 this week",up:true},
-          {icon:AlertTriangle,bg:"#fef2f2",ic:"#ef4444",label:"Fraud Flags",    v:"3",      trend:"↑ Needs review",up:false},
-          {icon:BarChart2,  bg:"#f0fdf4",ic:"var(--g-600)",label:"This Month Submissions",v:"384",trend:"↑ +42%",up:true},
+          {icon:Users,      bg:"#eff6ff",ic:"#3b82f6", label:"Total Students",      v:String(stats.students),    trend:"Live platform data",up:true},
+          {icon:School,     bg:"#f0fdf4",ic:"var(--g-600)",label:"Partner Schools",v:String(stats.schools),   trend:"Live platform data",up:true},
+          {icon:Recycle,    bg:"#fef9c3",ic:"#d97706", label:"Waste Collected",  v:`${stats.totalWasteKg.toFixed(1)} kg`,  trend:"Verified submissions",up:true},
+          {icon:Star,       bg:"#fdf4ff",ic:"#a21caf", label:"Submissions",   v:String(stats.submissions), trend:"Live platform data",up:true},
+          {icon:AlertTriangle,bg:"#fef2f2",ic:"#ef4444",label:"Recent reviews",    v:String(recentSubmissions.filter((submission) => submission.status === "pending").length),      trend:"Pending submissions",up:false},
+          {icon:BarChart2,  bg:"#f0fdf4",ic:"var(--g-600)",label:"Dashboard months",v:String(trendData.length),trend:"Live trend series",up:true},
         ].map(s=>(
           <div key={s.label} className="kpi-card animate-fade-up">
             <div className="kpi-card-header">
@@ -46,16 +85,16 @@ export default function AdminDashboard(){
       <div className="grid-2">
         <div className="chart-container">
           <div className="chart-title">Waste Collection Trend</div>
-          <div className="chart-sub">Monthly kg collected (2025)</div>
+          <div className="chart-sub">Last six months of live waste data</div>
           <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={TREND}>
+            <AreaChart data={trendData}>
               <defs>
                 <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="var(--g-600)" stopOpacity=".2"/>
                   <stop offset="95%" stopColor="var(--g-600)" stopOpacity="0"/>
                 </linearGradient>
               </defs>
-              <XAxis dataKey="m" axisLine={false} tickLine={false} tick={{fontSize:12,fill:"var(--text-soft)"}}/>
+              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize:12,fill:"var(--text-soft)"}}/>
               <YAxis hide/>
               <Tooltip contentStyle={{borderRadius:8,border:"1px solid var(--border)",fontSize:13}} formatter={v=>[`${v} kg`]}/>
               <Area type="monotone" dataKey="waste" stroke="var(--g-600)" strokeWidth={2} fill="url(#ag)"/>
@@ -64,42 +103,41 @@ export default function AdminDashboard(){
         </div>
         <div className="chart-container">
           <div className="chart-title">Waste by Type</div>
-          <div className="chart-sub">Distribution across all submissions</div>
+          <div className="chart-sub">Verified submissions by material</div>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
-              <Pie data={WASTE_TYPES_DATA} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} innerRadius={40} paddingAngle={3}>
-                {WASTE_TYPES_DATA.map((e,i)=><Cell key={i} fill={e.color}/>)}
+              <Pie data={wasteData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} innerRadius={40} paddingAngle={3}>
+                {wasteData.map((e,i)=><Cell key={i} fill={e.color}/>) }
               </Pie>
               <Legend iconType="circle" iconSize={10} wrapperStyle={{fontSize:13}}/>
-              <Tooltip formatter={v=>[`${v}%`]}/>
+              <Tooltip formatter={v=>[`${Number(v).toFixed(1)} kg`]}/>
             </PieChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Fraud flags */}
-      <div className="card" style={{border:"1px solid #fecaca"}}>
+      {/* Recent submissions */}
+      <div className="card">
         <div className="section-header">
-          <span className="section-title" style={{color:"var(--danger)",display:"flex",alignItems:"center",gap:6}}><AlertTriangle size={16}/> Fraud Alerts</span>
-          <button className="btn btn-sm" style={{background:"#fef2f2",color:"#991b1b",border:"1px solid #fecaca"}}>View all</button>
+          <span className="section-title" style={{display:"flex",alignItems:"center",gap:6}}><AlertTriangle size={16}/> Recent submissions</span>
+          <span className="badge badge-amber">{recentSubmissions.length} live</span>
         </div>
-        {[
-          {id:"P003",student:"Unknown",type:"Glass",weight:"4.2 kg",time:"38 min ago",reason:"Unregistered user"},
-          {id:"P007",student:"Test User",type:"Plastic",weight:"15 kg",time:"2 hrs ago",reason:"Suspicious high volume"},
-        ].map(f=>(
-          <div key={f.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 0",borderBottom:"1px solid #fee2e2",flexWrap:"wrap",gap:8}}>
+        {recentSubmissions.length ? recentSubmissions.map((submission) => (
+          <div key={submission._id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 0",borderBottom:"1px solid var(--bg-subtle)",flexWrap:"wrap",gap:8}}>
             <div>
               <div style={{fontWeight:600,fontSize:14,display:"flex",alignItems:"center",gap:8}}>
-                <span className="fraud-badge"><AlertTriangle size={11}/> {f.reason}</span>
+                <span className={`badge ${submission.status === "verified" ? "badge-green" : submission.status === "pending" ? "badge-amber" : "badge-red"}`}>{submission.status}</span>
               </div>
-              <div style={{fontSize:13,color:"var(--text-muted)",marginTop:3}}>{f.student} · {f.type} · {f.weight} · {f.time}</div>
+              <div style={{fontSize:13,color:"var(--text-muted)",marginTop:3}}>{submission.student?.name || "Unknown student"} · {submission.wasteType} · {Number(submission.weightKg || 0).toFixed(1)} kg · {new Date(submission.createdAt).toLocaleString()}</div>
             </div>
-            <div style={{display:"flex",gap:8}}>
-              <button className="btn btn-sm btn-danger">Block</button>
-              <button className="btn btn-sm" style={{background:"var(--bg-subtle)",border:"1px solid var(--border)",color:"var(--text-muted)"}}>Dismiss</button>
-            </div>
+            <div style={{color:"var(--text-soft)",fontSize:12}}>{submission.collectionPoint?.name || "No collection point"}</div>
           </div>
-        ))}
+        )) : (
+          <div className="empty-state" style={{ padding: "20px 0" }}>
+            <div className="empty-state-title">No recent submissions</div>
+            <div className="empty-state-sub">Live waste submissions will appear here once the platform is active.</div>
+          </div>
+        )}
       </div>
 
       {/* Recent users */}
@@ -112,8 +150,8 @@ export default function AdminDashboard(){
           <table className="table">
             <thead><tr><th>User</th><th>Role</th><th>School</th><th>Joined</th></tr></thead>
             <tbody>
-              {RECENT_USERS.map(u=>(
-                <tr key={u.name}>
+              {recentUsers.map((u)=>(
+                <tr key={u._id}>
                   <td>
                     <div style={{display:"flex",alignItems:"center",gap:10}}>
                       <div style={{width:34,height:34,borderRadius:"50%",background:"linear-gradient(135deg,var(--g-600),var(--lime-dk))",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#fff"}}>{u.av}</div>
@@ -121,8 +159,8 @@ export default function AdminDashboard(){
                     </div>
                   </td>
                   <td><span className={`badge ${ROLE_COLOR[u.role]||"badge-gray"}`}>{u.role}</span></td>
-                  <td style={{color:"var(--text-muted)",fontSize:13}}>{u.school}</td>
-                  <td style={{color:"var(--text-soft)",fontSize:13}}>{u.joined}</td>
+                  <td style={{color:"var(--text-muted)",fontSize:13}}>{u.school?.name || "—"}</td>
+                  <td style={{color:"var(--text-soft)",fontSize:13}}>{new Date(u.createdAt).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>

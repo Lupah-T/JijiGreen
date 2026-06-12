@@ -1,13 +1,49 @@
+import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, Gift, Plus, Search, ShoppingBag, Smartphone, Sprout, TrendingUp } from "lucide-react";
+import { getRewards } from "../../api/rewardsApi.js";
 
-const REWARDS = [
-  { name: "Safaricom 50 Airtime", category: "Airtime", stock: 240, redeemed: 86, points: 200, icon: Smartphone, status: "Live" },
-  { name: "Naivas KES 100 Voucher", category: "Shopping", stock: 120, redeemed: 42, points: 450, icon: ShoppingBag, status: "Live" },
-  { name: "Tree Planting Sponsorship", category: "Impact", stock: 800, redeemed: 134, points: 300, icon: Sprout, status: "Live" },
-  { name: "Green Ambassador Badge", category: "Badge", stock: 99, redeemed: 18, points: 500, icon: BadgeCheck, status: "Draft" },
-];
+function deriveCategory(title = "") {
+  const text = title.toLowerCase();
+  if (text.includes("airtime")) return { label: "Airtime", icon: Smartphone };
+  if (text.includes("voucher") || text.includes("shop")) return { label: "Shopping", icon: ShoppingBag };
+  if (text.includes("tree") || text.includes("sponsor")) return { label: "Impact", icon: Sprout };
+  return { label: "Badge", icon: BadgeCheck };
+}
 
 export default function RewardsManagement() {
+  const [rewards, setRewards] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    getRewards()
+      .then(({ data }) => {
+        if (!active) return;
+        setRewards(data.data || data || []);
+      })
+      .catch(() => {
+        if (active) setRewards([]);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const inventory = useMemo(() => rewards.filter((reward) => !search.trim() || reward.title.toLowerCase().includes(search.trim().toLowerCase())), [rewards, search]);
+  const activeRewards = inventory.filter((reward) => reward.active !== false).length;
+  const totalStock = inventory.reduce((sum, reward) => sum + Number(reward.stock || 0), 0);
+  const avgCost = inventory.length ? Math.round(inventory.reduce((sum, reward) => sum + Number(reward.pointsCost || 0), 0) / inventory.length) : 0;
+
+  if (loading) {
+    return <div className="loader"><span className="spinner" /> Loading rewards...</div>;
+  }
+
   return (
     <>
       <div className="dashboard-header">
@@ -20,9 +56,9 @@ export default function RewardsManagement() {
 
       <div className="dash-kpi-row">
         {[
-          { label: "Active rewards", value: "18", icon: Gift, bg: "#f0fdf4", color: "var(--g-600)" },
-          { label: "Redemptions", value: "1,248", icon: TrendingUp, bg: "#eff6ff", color: "#2563eb" },
-          { label: "Avg points cost", value: "420", icon: BadgeCheck, bg: "#fef9c3", color: "#d97706" },
+          { label: "Active rewards", value: String(activeRewards), icon: Gift, bg: "#f0fdf4", color: "var(--g-600)" },
+          { label: "Total stock", value: String(totalStock), icon: TrendingUp, bg: "#eff6ff", color: "#2563eb" },
+          { label: "Avg points cost", value: String(avgCost), icon: BadgeCheck, bg: "#fef9c3", color: "#d97706" },
         ].map(({ label, value, icon: Icon, bg, color }) => (
           <div className="kpi-card" key={label}>
             <div className="kpi-card-header">
@@ -37,34 +73,37 @@ export default function RewardsManagement() {
         <div className="section-header">
           <span className="section-title">Marketplace Inventory</span>
           <div style={{ position: "relative", width: "min(100%, 280px)" }}>
-            <input className="input" placeholder="Search rewards..." style={{ paddingLeft: 38 }} />
+            <input className="input" placeholder="Search rewards..." value={search} onChange={(event) => setSearch(event.target.value)} style={{ paddingLeft: 38 }} />
             <Search size={15} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--text-soft)" }} />
           </div>
         </div>
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Reward</th><th>Category</th><th>Points</th><th>Stock</th><th>Redeemed</th><th>Status</th><th>Health</th></tr></thead>
+            <thead><tr><th>Reward</th><th>Category</th><th>Points</th><th>Stock</th><th>Status</th><th>Health</th></tr></thead>
             <tbody>
-              {REWARDS.map(({ name, category, stock, redeemed, points, icon: Icon, status }) => (
-                <tr key={name}>
+              {inventory.map((reward) => {
+                const { label, icon: Icon } = deriveCategory(reward.title || "");
+                const status = reward.active === false ? "Draft" : "Live";
+                return (
+                <tr key={reward._id || reward.title}>
                   <td>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <div style={{ width: 36, height: 36, borderRadius: 12, background: "var(--g-50)", color: "var(--g-700)", display: "grid", placeItems: "center" }}><Icon size={18} /></div>
-                      <span style={{ fontWeight: 800 }}>{name}</span>
+                      <span style={{ fontWeight: 800 }}>{reward.title}</span>
                     </div>
                   </td>
-                  <td>{category}</td>
-                  <td style={{ fontFamily: "var(--font-heading)", fontWeight: 900 }}>{points}</td>
-                  <td>{stock}</td>
-                  <td>{redeemed}</td>
+                  <td>{label}</td>
+                  <td style={{ fontFamily: "var(--font-heading)", fontWeight: 900 }}>{reward.pointsCost}</td>
+                  <td>{reward.stock}</td>
                   <td><span className={`badge ${status === "Live" ? "badge-green" : "badge-gray"}`}>{status}</span></td>
                   <td>
                     <div className="progress-track" style={{ width: 120 }}>
-                      <div className="progress-fill" style={{ width: `${Math.min((stock / (stock + redeemed)) * 100, 100)}%` }} />
+                      <div className="progress-fill" style={{ width: `${Math.min(Number(reward.stock || 0) * 10, 100)}%` }} />
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -1,5 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../hooks/useAuth.js";
+import { getStudentDashboard } from "../../api/studentApi.js";
+import { getLeaderboard } from "../../api/rewardsApi.js";
+import { getCollectionPoints } from "../../api/collectionPointApi.js";
 import { Recycle, TrendingUp, Leaf, X, QrCode, Scale, CheckCircle,
          AlertCircle, Zap, Award, MapPin, ChevronRight } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from "recharts";
@@ -44,6 +47,50 @@ const MEDALS=["🥇","🥈","🥉"];
 /* ── Helpers ── */
 function getLevel(pts){return LEVELS.find(l=>pts>=l.min&&pts<l.max)||LEVELS[LEVELS.length-1];}
 function initials(n=""){return n.split(" ").slice(0,2).map(w=>w[0]).join("").toUpperCase()||"U";}
+function buildWeeklySeries(submissions = []){
+  const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const totals = new Map(labels.map((label) => [label, 0]));
+
+  submissions.forEach((submission) => {
+    const label = new Date(submission.createdAt).toLocaleDateString("en-US", { weekday: "short" });
+    if (totals.has(label)) {
+      totals.set(label, totals.get(label) + Number(submission.weightKg || 0));
+    }
+  });
+
+  return labels.map((label) => ({ w: label, kg: Number(totals.get(label).toFixed(1)) }));
+}
+
+function buildActivity(submissions = []){
+  return submissions.slice(0, 4).map((submission) => ({
+    id: submission._id,
+    text: `${submission.status === "verified" ? "Verified" : "Submitted"} ${Number(submission.weightKg || 0).toFixed(1)} kg ${submission.wasteType || "waste"}`,
+    time: new Date(submission.createdAt).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" }),
+    pts: submission.status === "verified" ? `+${Number(submission.pointsAwarded || 0)}` : "0",
+  }));
+}
+
+function buildNearbyPoints(points = []){
+  return points
+    .filter((point) => point.status === "active")
+    .slice(0, 3)
+    .map((point, index) => ({
+      name: point.name,
+      type: point.partnerName || point.county || "Collection point",
+      dist: point.distanceKm ? `${point.distanceKm} km away` : `${0.5 + index * 0.7} km away`,
+      open: true,
+    }));
+}
+
+function buildLeaderboardRows(entries = []){
+  return entries.slice(0, 5).map((entry, index) => ({
+    id: entry._id,
+    name: entry.user?.name || "Unknown recycler",
+    school: entry.school?.name || "Unassigned",
+    pts: Number(entry.points ?? entry.user?.ecoPoints ?? 0),
+    av: initials(entry.user?.name || `Rank ${index + 1}`),
+  }));
+}
 function getTier(pts){
   if(pts>=5000)return{label:"Gold",bg:"#fef9c3",color:"#713f12"};
   if(pts>=1000)return{label:"Silver",bg:"#f1f5f9",color:"#334155"};
@@ -213,10 +260,51 @@ function EcoRing({points}){
 /* ── Main ── */
 export default function StudentDashboard(){
   const{user}=useAuth();
-  const pts=user?.ecoPoints||0;
+  const[dash,setDash]=useState(null);
+  const[leaderboard,setLeaderboard]=useState([]);
+  const[points,setPoints]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const pts=dash?.user?.ecoPoints ?? user?.ecoPoints ?? 0;
   const tier=getTier(pts);
   const[waste,setWaste]=useState(false);
   const[qr,setQr]=useState(false);
+
+  useEffect(()=>{
+    let active=true;
+
+    Promise.all([getStudentDashboard(), getLeaderboard(), getCollectionPoints()])
+      .then(([dashboardRes, leaderboardRes, pointsRes])=>{
+        if(!active)return;
+        setDash(dashboardRes.data.data || dashboardRes.data || null);
+        setLeaderboard(leaderboardRes.data.data || leaderboardRes.data || []);
+        setPoints(pointsRes.data.data || pointsRes.data || []);
+      })
+      .catch(()=>{
+        if(!active)return;
+        setDash(null);
+        setLeaderboard([]);
+        setPoints([]);
+      })
+      .finally(()=>{
+        if(active)setLoading(false);
+      });
+
+    return ()=>{active=false;};
+  },[]);
+
+  const submissions=dash?.submissions || [];
+  const CHART_DATA=useMemo(()=>buildWeeklySeries(submissions),[submissions]);
+  const ACTIVITY=useMemo(()=>buildActivity(submissions),[submissions]);
+  const NEARBY=useMemo(()=>buildNearbyPoints(points),[points]);
+  const LEADERBOARD=useMemo(()=>buildLeaderboardRows(leaderboard),[leaderboard]);
+  const verifiedSubmissions=submissions.filter((submission)=>submission.status==="verified");
+  const totalKg=submissions.reduce((sum,submission)=>sum+Number(submission.weightKg || 0),0);
+  const verifiedPoints=verifiedSubmissions.reduce((sum,submission)=>sum+Number(submission.pointsAwarded || 0),0);
+  const treeImpact=Math.floor(totalKg / 25);
+
+  if(loading){
+    return <div className="loader"><span className="spinner" /> Loading dashboard...</div>;
+  }
 
   return(
     <>
@@ -237,10 +325,10 @@ export default function StudentDashboard(){
       {/* KPI row */}
       <div className="dash-kpi-row">
         {[
-          {icon:Recycle,   bg:"#f0fdf4",ic:"var(--g-600)", label:"Total Submissions",  v:"12",     trend:"+3 this week",  up:true},
-          {icon:TrendingUp,bg:"#eff6ff",ic:"#3b82f6",       label:"Kg Collected",       v:"8.4 kg", trend:"+1.2 kg",       up:true},
-          {icon:Leaf,      bg:"#f7fee7",ic:"var(--lime-dk)", label:"Trees Sponsored",   v:"2",      trend:"Keep going!",   up:true},
-          {icon:Award,     bg:"#fef9c3",ic:"#d97706",        label:"Badges Earned",     v:"5",      trend:"+1 this month", up:true},
+          {icon:Recycle,   bg:"#f0fdf4",ic:"var(--g-600)", label:"Total Submissions",  v:String(submissions.length),     trend:"Live data",  up:true},
+          {icon:TrendingUp,bg:"#eff6ff",ic:"#3b82f6",       label:"Kg Collected",       v:`${totalKg.toFixed(1)} kg`, trend:"Live data",       up:true},
+          {icon:Leaf,      bg:"#f7fee7",ic:"var(--lime-dk)", label:"Trees Sponsored",   v:String(treeImpact),      trend:"Calculated from waste",   up:true},
+          {icon:Award,     bg:"#fef9c3",ic:"#d97706",        label:"Verified Points",   v:String(verifiedPoints),      trend:"From verified submissions", up:true},
         ].map(s=>(
           <div key={s.label} className="kpi-card animate-fade-up">
             <div className="kpi-card-header">
@@ -311,7 +399,7 @@ export default function StudentDashboard(){
       <div className="grid-2">
         <div className="chart-container">
           <div className="chart-title">Weekly Recycling</div>
-          <div className="chart-sub">Kg collected this week</div>
+          <div className="chart-sub">Kg collected from your live submissions</div>
           <ResponsiveContainer width="100%" height={180}>
             <AreaChart data={CHART_DATA}>
               <defs>

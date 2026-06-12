@@ -1,14 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckSquare, Recycle, Clock, AlertTriangle, QrCode, Scale, Save, X, MapPin } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { getCollectionPoints } from "../../api/collectionPointApi.js";
+import { getCollectionHistory, getPendingSubmissions } from "../../api/collectorApi.js";
 
-const CHART_DATA=[{d:"Mon",kg:12.4},{d:"Tue",kg:18.1},{d:"Wed",kg:9.7},{d:"Thu",kg:21.3},{d:"Fri",kg:15.8},{d:"Sat",kg:7.2},{d:"Sun",kg:11.0}];
-const PENDING=[
-  {id:"P001",student:"Amina Odhiambo",type:"Plastic",weight:"1.8 kg",time:"10 min ago",risk:"Low"},
-  {id:"P002",student:"Brian Mutua",    type:"Aluminium",weight:"0.6 kg",time:"25 min ago",risk:"Low"},
-  {id:"P003",student:"Unknown",        type:"Glass",weight:"4.2 kg",time:"38 min ago",risk:"High"},
-];
 const WASTE_TYPES=[
   {v:"plastic",l:"Plastic Bottles",e:"🧴",pts:20},
   {v:"aluminium",l:"Aluminium Cans",e:"🥤",pts:30},
@@ -16,23 +11,66 @@ const WASTE_TYPES=[
   {v:"glass",l:"Glass",e:"🫙",pts:15},
 ];
 
+const buildChartData = (submissions = []) => {
+  const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const totals = new Map(labels.map((label) => [label, 0]));
+
+  submissions.forEach((submission) => {
+    const label = new Date(submission.createdAt).toLocaleDateString("en-US", { weekday: "short" });
+    if (totals.has(label)) {
+      totals.set(label, totals.get(label) + Number(submission.weightKg || 0));
+    }
+  });
+
+  return labels.map((label) => ({ d: label, kg: Number(totals.get(label).toFixed(1)) }));
+};
+
 export default function CollectorDashboard(){
   const[type,setType]=useState("plastic");
   const[weight,setWeight]=useState("");
   const[studentId,setStudentId]=useState("");
   const[collectionPoint,setCollectionPoint]=useState("");
   const[collectionPoints,setCollectionPoints]=useState([]);
+  const[pending,setPending]=useState([]);
+  const[history,setHistory]=useState([]);
   const[done,setDone]=useState(false);
+  const[loading,setLoading]=useState(true);
   const pts=weight?Math.round(parseFloat(weight)||0)*WASTE_TYPES.find(w=>w.v===type)?.pts:0;
   const submit=e=>{e.preventDefault();if(!weight||!studentId||!collectionPoint)return;setDone(true);setTimeout(()=>{setDone(false);setWeight("");setStudentId("");},2500);};
 
   useEffect(()=>{
-    getCollectionPoints().then(({data})=>{
-      const points = data.data || [];
-      setCollectionPoints(points);
-      if(points[0]?._id) setCollectionPoint(points[0]._id);
-    }).catch(()=>setCollectionPoints([]));
+    let active = true;
+
+    Promise.all([getCollectionPoints(), getPendingSubmissions(), getCollectionHistory()])
+      .then(([pointsRes, pendingRes, historyRes])=>{
+        if(!active)return;
+        const points = pointsRes.data.data || pointsRes.data || [];
+        setCollectionPoints(points);
+        if(points[0]?._id) setCollectionPoint(points[0]._id);
+        setPending(pendingRes.data.data || pendingRes.data || []);
+        setHistory(historyRes.data.data || historyRes.data || []);
+      })
+      .catch(()=>{
+        if(!active)return;
+        setCollectionPoints([]);
+        setPending([]);
+        setHistory([]);
+      })
+      .finally(()=>{
+        if(active)setLoading(false);
+      });
+
+    return ()=>{active=false;};
   },[]);
+
+  const CHART_DATA=useMemo(()=>buildChartData(history),[history]);
+  const livePending=pending.slice(0,3);
+  const verifiedCount=history.filter((submission)=>submission.status==="verified").length;
+  const collectedKg=history.reduce((sum,submission)=>sum+Number(submission.weightKg || 0),0);
+
+  if(loading){
+    return <div className="loader"><span className="spinner" /> Loading collector dashboard...</div>;
+  }
 
   return(
     <>
@@ -46,10 +84,10 @@ export default function CollectorDashboard(){
       {/* KPIs */}
       <div className="dash-kpi-row">
         {[
-          {icon:CheckSquare,bg:"#f0fdf4",ic:"var(--g-600)",label:"Verified Today",v:"7",trend:"↑ +3 vs yesterday",up:true},
-          {icon:Recycle,    bg:"#eff6ff",ic:"#3b82f6",     label:"Kg Collected",  v:"18.4 kg",trend:"↑ Good day",up:true},
-          {icon:Clock,      bg:"#fffbeb",ic:"#d97706",     label:"Pending",       v:"3",trend:"Needs attention",up:false},
-          {icon:AlertTriangle,bg:"#fef2f2",ic:"#ef4444",  label:"Fraud Flags",   v:"1",trend:"1 high-risk",up:false},
+          {icon:CheckSquare,bg:"#f0fdf4",ic:"var(--g-600)",label:"Verified Today",v:String(verifiedCount),trend:"Live history",up:true},
+          {icon:Recycle,    bg:"#eff6ff",ic:"#3b82f6",     label:"Kg Collected",  v:`${collectedKg.toFixed(1)} kg`,trend:"Live history",up:true},
+          {icon:Clock,      bg:"#fffbeb",ic:"#d97706",     label:"Pending",       v:String(pending.length),trend:"Live queue",up:false},
+          {icon:AlertTriangle,bg:"#fef2f2",ic:"#ef4444",  label:"Assigned Points",   v:String(collectionPoints.length),trend:"Live network",up:false},
         ].map(s=>(
           <div key={s.label} className="kpi-card animate-fade-up">
             <div className="kpi-card-header">
@@ -124,16 +162,16 @@ export default function CollectorDashboard(){
         <div className="card">
           <div className="section-header">
             <span className="section-title">Pending Verifications</span>
-            <span className="badge badge-amber">{PENDING.length} pending</span>
+            <span className="badge badge-amber">{pending.length} pending</span>
           </div>
-          {PENDING.map(p=>(
-            <div key={p.id} style={{border:`1px solid ${p.risk==="High"?"#fecaca":"var(--border)"}`,borderRadius:"var(--r-md)",padding:"14px",marginBottom:10,background:p.risk==="High"?"#fef2f2":"#fff"}}>
+          {livePending.map((p)=>(
+            <div key={p._id} style={{border:`1px solid ${Number(p.weightKg || 0)>=3?"#fecaca":"var(--border)"}`,borderRadius:"var(--r-md)",padding:"14px",marginBottom:10,background:Number(p.weightKg || 0)>=3?"#fef2f2":"#fff"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                 <div>
-                  <div style={{fontWeight:600,fontSize:14}}>{p.student}</div>
-                  <div style={{fontSize:12,color:"var(--text-muted)"}}>{p.type} · {p.weight} · {p.time}</div>
+                  <div style={{fontWeight:600,fontSize:14}}>{p.student?.name || "Unknown student"}</div>
+                  <div style={{fontSize:12,color:"var(--text-muted)"}}>{p.wasteType} · {Number(p.weightKg || 0).toFixed(1)} kg · {new Date(p.createdAt).toLocaleString()}</div>
                 </div>
-                {p.risk==="High"&&<span className="fraud-badge"><AlertTriangle/>High Risk</span>}
+                {Number(p.weightKg || 0)>=3&&<span className="fraud-badge"><AlertTriangle/>High Risk</span>}
               </div>
               <div style={{display:"flex",gap:8}}>
                 <button className="btn btn-primary btn-sm" style={{flex:1,justifyContent:"center"}}><CheckSquare size={13}/> Approve</button>
@@ -147,7 +185,7 @@ export default function CollectorDashboard(){
       {/* Weekly chart */}
       <div className="chart-container">
         <div className="chart-title">Weekly Collection Volume</div>
-        <div className="chart-sub">Kilograms collected per day this week</div>
+        <div className="chart-sub">Kilograms collected from live verified submissions</div>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={CHART_DATA} barSize={32}>
             <XAxis dataKey="d" axisLine={false} tickLine={false} tick={{fontSize:12,fill:"var(--text-soft)"}}/>

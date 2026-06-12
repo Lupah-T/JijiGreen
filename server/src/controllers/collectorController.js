@@ -51,7 +51,27 @@ export const verifyWasteSubmission = async (req, res) => {
 };
 
 export const getCollectionHistory = async (req, res) => {
-  const submissions = await WasteSubmission.find({ collector: req.user._id }).sort({ createdAt: -1 });
+  const submissions = await WasteSubmission.find({ collector: req.user._id })
+    .populate("student", "name email role")
+    .populate("collectionPoint", "name county address")
+    .sort({ createdAt: -1 });
+  res.json(submissions);
+};
+
+export const getPendingSubmissions = async (req, res) => {
+  const assignedPoints = await CollectionPoint.find({
+    status: "active",
+    assignedCollectors: req.user._id,
+  }).select("_id");
+
+  const submissions = await WasteSubmission.find({
+    status: "pending",
+    collectionPoint: { $in: assignedPoints.map((point) => point._id) },
+  })
+    .populate("student", "name email role school")
+    .populate("collectionPoint", "name county address acceptedWasteTypes")
+    .sort({ createdAt: -1 });
+
   res.json(submissions);
 };
 
