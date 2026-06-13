@@ -1,27 +1,4 @@
-import { useEffect, useState } from "react";
-import { AlertTriangle, CheckSquare, Clock3, QrCode, Scale, ScanLine, X } from "lucide-react";
-import { getPendingSubmissions } from "../../api/collectorApi.js";
 
-const calculatePoints = (submission) => Math.max(0, Math.round(Number(submission.weightKg || 0) * 10));
-
-export default function VerifyWaste() {
-  const [queue, setQueue] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-
-    getPendingSubmissions()
-      .then(({ data }) => {
-        if (!active) return;
-        setQueue(data.data || data || []);
-      })
-      .catch(() => {
-        if (active) setQueue([]);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
 
     import { useEffect, useState } from "react";
     import { AlertTriangle, CheckSquare, Clock3, QrCode, Scale, ScanLine, X } from "lucide-react";
