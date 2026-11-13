@@ -1,129 +1,100 @@
 import { useEffect, useMemo, useState } from "react";
-import { Award, Baby, CheckCircle2, Gift, Lock, Printer, RefreshCw, Search, Star, Ticket, UserRound, X, Zap } from "lucide-react";
+import { Lock, RefreshCw, Star, Zap } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
-import { getMyRewards, getRewards, redeemReward } from "../../api/rewardsApi.js";
-
-const CHILD_MIN = 60;
-const MILESTONE = 500;
+import { getRewards, redeemReward } from "../../api/rewardsApi.js";
 
 const CATEGORY_STYLE = {
-  Airtime: { bg: "#dbeafe", color: "#1e3a8a", grad: "#eff6ff,#dbeafe" },
-  Data: { bg: "#e0e7ff", color: "#3730a3", grad: "#eef2ff,#e0e7ff" },
-  Vouchers: { bg: "#dcfce7", color: "#166534", grad: "#f0fdf4,#dcfce7" },
-  "Eco Impact": { bg: "#d1fae5", color: "#065f46", grad: "#ecfdf5,#bbf7d0" },
-  Toys: { bg: "#ffedd5", color: "#9a3412", grad: "#fff7ed,#fed7aa" },
-  Storybooks: { bg: "#fce7f3", color: "#9d174d", grad: "#fdf2f8,#fbcfe8" },
-  Stationery: { bg: "#fef9c3", color: "#854d0e", grad: "#fefce8,#fef08a" },
-  Games: { bg: "#ede9fe", color: "#5b21b6", grad: "#f5f3ff,#ddd6fe" },
-  Sports: { bg: "#cffafe", color: "#155e75", grad: "#ecfeff,#a5f3fc" },
+  Airtime: { bg: "#dbeafe", color: "#1e3a8a" },
+  Shopping: { bg: "var(--g-100)", color: "var(--g-800)" },
+  Sustainability: { bg: "#dcfce7", color: "#166534" },
+  Badge: { bg: "#fef3c7", color: "#92400e" },
+  Food: { bg: "#fae8ff", color: "#86198f" },
+  Premium: { bg: "#fdf4ff", color: "#7e22ce" },
+  Reward: { bg: "var(--bg-subtle)", color: "var(--text-muted)" },
 };
-const FALLBACK_STYLE = { bg: "var(--bg-subtle)", color: "var(--text-muted)", grad: "#f8fafc,#f1f5f9" };
 
-function Certificate({ name, onClose }) {
-  useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+function deriveCategory(reward = {}) {
+  const text = `${reward.title || ""} ${reward.description || ""}`.toLowerCase();
+  if (text.includes("airtime")) return "Airtime";
+  if (text.includes("voucher") || text.includes("shop") || text.includes("naivas") || text.includes("java")) return "Shopping";
+  if (text.includes("tree") || text.includes("sustain")) return "Sustainability";
+  if (text.includes("badge")) return "Badge";
+  if (text.includes("premium")) return "Premium";
+  if (text.includes("coffee") || text.includes("food")) return "Food";
+  return "Reward";
+}
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" style={{ width: "min(100%, 640px)" }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <span className="modal-title">Your Certificate</span>
-          <button className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Close"><X size={18} /></button>
-        </div>
-        <div className="certificate" id="jg-certificate">
-          <div className="certificate-inner">
-            <div className="certificate-brand">🌱 JijiGreen</div>
-            <div className="certificate-kicker">Certificate of Recognition</div>
-            <p className="certificate-small">This is proudly awarded to</p>
-            <div className="certificate-name">{name || "Eco Champion"}</div>
-            <p className="certificate-small" style={{ maxWidth: 380 }}>
-              for earning {MILESTONE} eco-points through verified recycling and helping build a cleaner, greener Kenya.
-            </p>
-            <div className="certificate-seal">🏆<span>Eco Champion</span></div>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
-          <button className="btn btn-outline btn-sm" onClick={onClose}>Close</button>
-          <button className="btn btn-primary btn-sm" onClick={() => window.print()}><Printer size={14} /> Print / Save PDF</button>
-        </div>
-      </div>
-    </div>
-  );
+function deriveEmoji(category, title = "") {
+  if (category === "Airtime") return "📱";
+  if (category === "Shopping") return "🛒";
+  if (category === "Sustainability") return "🌳";
+  if (category === "Badge") return "🏅";
+  if (category === "Food") return "☕";
+  if (category === "Premium") return "🎟️";
+  return title.includes("Gift") ? "🎁" : "♻️";
 }
 
 export default function Rewards() {
   const { user, setUser } = useAuth();
   const [rewards, setRewards] = useState([]);
-  const [mine, setMine] = useState({ progress: null, vouchers: [] });
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [search, setSearch] = useState("");
-  const [message, setMessage] = useState(null); // { type, text }
+  const [message, setMessage] = useState("");
   const [redeemingId, setRedeemingId] = useState(null);
-  const [showCert, setShowCert] = useState(false);
 
   useEffect(() => {
     let active = true;
-    Promise.allSettled([getRewards(), getMyRewards()]).then(([r, m]) => {
-      if (!active) return;
-      if (r.status === "fulfilled") setRewards(r.value.data.data || r.value.data || []);
-      if (m.status === "fulfilled") setMine(m.value.data.data || { progress: null, vouchers: [] });
-      setLoading(false);
-    });
-    return () => { active = false; };
+
+    getRewards()
+      .then(({ data }) => {
+        if (!active) return;
+        setRewards(data.data || data || []);
+      })
+      .catch(() => {
+        if (active) setRewards([]);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const progress = mine.progress;
-  const ageGroup = progress?.ageGroup || user?.ageGroup || "adult";
-  const isChild = ageGroup === "child";
-  const userPoints = Number(progress?.ecoPoints ?? user?.ecoPoints ?? 0);
-  const lifetime = Math.max(Number(progress?.lifetimePoints ?? user?.lifetimePoints ?? 0), userPoints);
-  const milestoneReached = Boolean(progress?.milestoneReached) || lifetime >= MILESTONE;
-
-  const grandRewards = useMemo(() => rewards.filter((r) => r.kind === "milestone"), [rewards]);
-  const standard = useMemo(() => rewards.filter((r) => r.kind !== "milestone"), [rewards]);
-  const categories = useMemo(() => ["All", ...new Set(standard.map((r) => r.category || "General"))], [standard]);
+  const categories = useMemo(() => ["All", ...new Set(rewards.map((reward) => deriveCategory(reward)))], [rewards]);
+  const userPoints = Number(user?.ecoPoints || 0);
 
   const shown = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return standard.filter((r) =>
-      (selectedCategory === "All" || (r.category || "General") === selectedCategory) &&
-      (!q || `${r.title} ${r.description}`.toLowerCase().includes(q)));
-  }, [standard, search, selectedCategory]);
-
-  const costOf = (r) => Math.max(Number(r.pointsCost || 0), isChild ? CHILD_MIN : 0);
+    const query = search.trim().toLowerCase();
+    return rewards
+      .map((reward) => ({
+        ...reward,
+        category: deriveCategory(reward),
+        emoji: deriveEmoji(deriveCategory(reward), reward.title),
+      }))
+      .filter((reward) => (selectedCategory === "All" || reward.category === selectedCategory) && (!query || `${reward.title} ${reward.description}`.toLowerCase().includes(query)));
+  }, [rewards, search, selectedCategory]);
 
   const handleRedeem = async (reward) => {
-    setMessage(null);
+    setMessage("");
     setRedeemingId(reward._id);
     try {
-      const { data } = await redeemReward(reward._id);
-      const newBalance = data.ecoPoints ?? Math.max(0, userPoints - costOf(reward));
-      setRewards((cur) => cur.map((r) => (r._id === reward._id ? { ...r, stock: Math.max(0, Number(r.stock || 0) - 1) } : r)));
-      setMine((cur) => ({
-        ...cur,
-        progress: cur.progress ? { ...cur.progress, ecoPoints: newBalance } : cur.progress,
-        vouchers: [{ _id: data._id || data.code, code: data.code, reward, createdAt: new Date().toISOString() }, ...cur.vouchers],
-      }));
-      setUser((cur) => (cur ? { ...cur, ecoPoints: newBalance } : cur));
-      setMessage({ type: "success", text: `🎉 You redeemed “${reward.title}”! Your voucher code is ${data.code}.` });
+      await redeemReward(reward._id);
+      setRewards((current) => current.map((item) => (item._id === reward._id ? { ...item, stock: Math.max(0, Number(item.stock || 0) - 1) } : item)));
+      setUser((current) => (current ? { ...current, ecoPoints: Math.max(0, Number(current.ecoPoints || 0) - Number(reward.pointsCost || 0)) } : current));
+      setMessage(`Redeemed ${reward.title}`);
     } catch (error) {
-      setMessage({ type: "error", text: error?.message || "Could not redeem reward." });
+      setMessage(error?.message || "Could not redeem reward.");
     } finally {
       setRedeemingId(null);
     }
   };
 
-  if (loading) return <div className="loader"><span className="spinner" /> Loading rewards...</div>;
-
-  const toGrand = Math.max(0, MILESTONE - lifetime);
-  const grandPct = Math.min((lifetime / MILESTONE) * 100, 100);
-  const childPct = Math.min((userPoints / CHILD_MIN) * 100, 100);
-  const grandVouchers = mine.vouchers.filter((v) => v.reward?.kind === "milestone");
-  const otherVouchers = mine.vouchers.filter((v) => v.reward?.kind !== "milestone");
+  if (loading) {
+    return <div className="loader"><span className="spinner" /> Loading rewards...</div>;
+  }
 
   return (
     <>
@@ -142,131 +113,84 @@ export default function Rewards() {
         <div className="points-pill">
           <Zap size={18} style={{ color: "var(--lime-dk)" }} />
           <div>
-            <div className="points-pill-value">{userPoints.toLocaleString()}</div>
-            <div className="points-pill-label">Spendable points</div>
+            <div style={{fontFamily:"var(--font-heading)",fontWeight:800,fontSize:20,lineHeight:1,color:"var(--g-800)"}}>{userPoints.toLocaleString()}</div>
+            <div style={{fontSize:11,color:"var(--text-muted)",fontWeight:600}}>Eco Points</div>
           </div>
         </div>
       </div>
 
-      {message && (
-        <div className={`alert ${message.type === "success" ? "alert-success" : "alert-error"}`} role="status">{message.text}</div>
-      )}
-
-      {/* Grand award: 500 lifetime points */}
-      <section className={`milestone-card${milestoneReached ? " reached" : ""}`}>
-        <div className="milestone-head">
-          <div>
-            <span className="milestone-kicker"><Award size={14} /> Grand award · {MILESTONE} total points</span>
-            <h2 className="milestone-title">
-              {milestoneReached ? "Congratulations, Eco Champion! 🎉" : `${toGrand.toLocaleString()} more points to win the Eco Champion pack`}
-            </h2>
-            <p className="milestone-sub">
-              {milestoneReached
-                ? "Your watch, bag and certificate have been awarded. Show your voucher codes to a JijiGreen collector to collect them."
-                : "Every point you ever earn counts towards this (spending points on rewards will not reduce your progress)."}
-            </p>
-          </div>
-          {milestoneReached && (
-            <button className="btn btn-sm milestone-btn" onClick={() => setShowCert(true)}><Award size={14} /> View certificate</button>
-          )}
+      {message ? (
+        <div className="alert alert-success" style={{ marginBottom: 16 }}>
+          {message}
         </div>
+      ) : null}
 
-        <div className="progress-track milestone-track"><div className="progress-fill" style={{ width: `${grandPct}%` }} /></div>
-        <div className="milestone-meta"><span>{lifetime.toLocaleString()} pts earned</span><span>{MILESTONE} pts</span></div>
-
-        <div className="milestone-items">
-          {(grandRewards.length ? grandRewards : [
-            { _id: "w", title: "Eco Champion Watch", emoji: "⌚" },
-            { _id: "b", title: "Eco Champion Bag", emoji: "🎒" },
-            { _id: "c", title: "Eco Champion Certificate", emoji: "🏆" },
-          ]).map((r) => {
-            const got = grandVouchers.find((v) => v.reward?._id === r._id || v.reward?.title === r.title);
-            return (
-              <div key={r._id} className={`milestone-item${milestoneReached ? " got" : ""}`}>
-                <span className="milestone-emoji">{r.emoji || "🎁"}</span>
-                <div>
-                  <div className="milestone-item-title">{r.title.replace("Eco Champion ", "")}</div>
-                  <div className="milestone-item-state">
-                    {milestoneReached ? <><CheckCircle2 size={12} /> Awarded{got ? ` · ${got.code}` : ""}</> : <><Lock size={12} /> Locked</>}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Children: unlock banner */}
-      {isChild && userPoints < CHILD_MIN && (
-        <div className="unlock-banner">
-          <div style={{ flex: 1 }}>
-            <strong>Rewards unlock at {CHILD_MIN} points! 🎈</strong>
-            <div style={{ fontSize: 13, color: "var(--text-muted)", margin: "2px 0 8px" }}>
-              You need {CHILD_MIN - userPoints} more point{CHILD_MIN - userPoints === 1 ? "" : "s"} to start choosing toys and storybooks.
-            </div>
-            <div className="progress-track"><div className="progress-fill" style={{ width: `${childPct}%` }} /></div>
-          </div>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="filter-row">
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {categories.map((c) => (
-            <button key={c} className={`tag ${selectedCategory === c ? "tag-active" : "tag-inactive"}`} onClick={() => setSelectedCategory(c)}>{c}</button>
+      {/* Category filter */}
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {categories.map((category) => (
+            <button key={category} className={`tag ${selectedCategory===category?"tag-active":"tag-inactive"}`} onClick={()=>setSelectedCategory(category)}>{category}</button>
           ))}
         </div>
-        <div className="search-box">
-          <Search size={15} />
-          <input className="input" placeholder="Search rewards..." aria-label="Search rewards" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
+        <label style={{display:"flex",alignItems:"center",gap:8,minWidth:260,flex:"1 1 280px"}}>
+          <input className="input" placeholder="Search rewards..." value={search} onChange={(event) => setSearch(event.target.value)} />
+        </label>
       </div>
 
-      {!shown.length && (
-        <div className="empty-state">
-          <div className="empty-state-icon">🎁</div>
+      {!shown.length ? (
+        <div className="empty-state" style={{marginTop:24}}>
           <div className="empty-state-title">No rewards found</div>
-          <div className="empty-state-sub">{standard.length ? "Try a different search or category." : "New rewards are coming soon. Check back later!"}</div>
+          <div className="empty-state-sub">Try a different search or category.</div>
         </div>
-      )}
+      ) : null}
 
+      {/* Grid */}
       <div className="grid-auto">
-        {shown.map((reward, index) => {
-          const cost = costOf(reward);
-          const inStock = Number(reward.stock || 0) > 0;
-          const canRedeem = userPoints >= cost && inStock && reward.active !== false;
-          const style = CATEGORY_STYLE[reward.category] || FALLBACK_STYLE;
-          const pct = Math.min((userPoints / (cost || 1)) * 100, 100);
-          return (
-            <div key={reward._id || reward.title} className={`reward-card animate-fade-up delay-${(index % 3 + 1) * 100}`}>
-              <div className="reward-card-img" style={{ background: `linear-gradient(135deg,${style.grad})`, position: "relative" }}>
-                <span>{reward.emoji || "🎁"}</span>
-                <span className="reward-chip" style={{ background: style.bg, color: style.color }}>{reward.category || "Reward"}</span>
+        {shown.map((reward, index)=>{
+          const canRedeem = userPoints >= Number(reward.pointsCost || 0) && Number(reward.stock || 0) > 0 && reward.active !== false;
+          const accent = CATEGORY_STYLE[reward.category] || CATEGORY_STYLE.Reward;
+          const gradient = reward.category === "Premium"
+            ? "#fdf4ff,#ede9fe"
+            : reward.category === "Shopping"
+              ? "#f0fdf4,#dcfce7"
+              : reward.category === "Sustainability"
+                ? "#dcfce7,#bbf7d0"
+                : reward.category === "Badge"
+                  ? "#fefce8,#fef3c7"
+                  : "var(--bg),var(--bg-subtle)";
+
+          return(
+            <div key={reward._id || reward.title} className={`reward-card animate-fade-up delay-${(index%3+1)*100}`}>
+              <div className="reward-card-img" style={{background:`linear-gradient(135deg,${gradient})`}}>
+                <span>{reward.emoji}</span>
+                <span style={{position:"absolute",top:10,right:10,background:accent.bg,color:accent.color,borderRadius:100,padding:"2px 8px",fontSize:11,fontWeight:700}}>
+                  {reward.category}
+                </span>
               </div>
               <div className="reward-card-body">
-                <div className="reward-title">{reward.title}</div>
-                <p className="reward-desc">{reward.description || "Available through the JijiGreen reward marketplace."}</p>
-                <div className="reward-foot">
+                <div style={{fontFamily:"var(--font-heading)",fontWeight:700,fontSize:15,marginBottom:6}}>{reward.title}</div>
+                <p style={{fontSize:13,color:"var(--text-muted)",lineHeight:1.6,marginBottom:12}}>{reward.description || "Available through the JijiGreen reward marketplace."}</p>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                   <div>
-                    <div className="reward-pts">{cost.toLocaleString()} <small>pts</small></div>
-                    <div className="reward-stock">{inStock ? `${Number(reward.stock)} in stock` : "Out of stock"}</div>
+                    <div className="reward-pts">{Number(reward.pointsCost || 0).toLocaleString()}</div>
+                    <div style={{fontSize:11,color:"var(--text-muted)",fontWeight:500}}>{Number(reward.stock || 0)} in stock</div>
                   </div>
                   <button
-                    className={canRedeem ? "btn btn-primary btn-sm" : "btn btn-sm btn-locked"}
+                    className={canRedeem?"btn btn-primary btn-sm":"btn btn-sm"}
                     disabled={!canRedeem || redeemingId === reward._id}
                     onClick={() => handleRedeem(reward)}
+                    style={!canRedeem?{background:"var(--bg-subtle)",color:"var(--text-soft)",cursor:"not-allowed",border:"1px solid var(--border)"}:{}}
                     aria-label={`Redeem ${reward.title}`}
                   >
-                    {redeemingId === reward._id ? <><RefreshCw size={12} className="spin" /> Redeeming</>
-                      : canRedeem ? <><Star size={12} /> Redeem</>
-                      : !inStock ? "Sold out"
-                      : <><Lock size={12} /> {Math.max(0, cost - userPoints)} more</>}
+                    {redeemingId === reward._id ? <><RefreshCw size={12} className="spin" /> Redeeming</> : canRedeem ? <><Star size={12}/> Redeem</> : <><Lock size={12}/> {Math.max(0, Number(reward.pointsCost || 0) - userPoints)} more pts</>}
                   </button>
                 </div>
-                {!canRedeem && inStock && (
-                  <div style={{ marginTop: 10 }}>
-                    <div className="progress-track"><div className="progress-fill" style={{ width: `${pct}%` }} /></div>
-                    <div style={{ fontSize: 11, color: "var(--text-soft)", marginTop: 4 }}>{Math.round(pct)}% there</div>
+                {!canRedeem && Number(reward.pointsCost || 0) > 0 && (
+                  <div style={{marginTop:8}}>
+                    <div className="progress-track">
+                      <div className="progress-fill" style={{width:`${Math.min((userPoints / Number(reward.pointsCost || 1)) * 100, 100)}%`}}/>
+                    </div>
+                    <div style={{fontSize:11,color:"var(--text-soft)",marginTop:4}}>{Math.round((userPoints / Number(reward.pointsCost || 1)) * 100)}% there</div>
                   </div>
                 )}
               </div>

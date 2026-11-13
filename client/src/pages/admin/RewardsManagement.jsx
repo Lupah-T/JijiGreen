@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BadgeCheck, Gift, Search, ShoppingBag, Smartphone, Sprout, TrendingUp } from "lucide-react";
+import { BadgeCheck, Gift, Plus, Search, ShoppingBag, Smartphone, Sprout, TrendingUp } from "lucide-react";
 import { getRewards } from "../../api/rewardsApi.js";
 
 function deriveCategory(title = "") {
@@ -79,7 +79,7 @@ export default function RewardsManagement() {
         </div>
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Reward</th><th>Category</th><th>For</th><th>Points</th><th>Stock</th><th>Status</th><th>Health</th></tr></thead>
+            <thead><tr><th>Reward</th><th>Category</th><th>Points</th><th>Stock</th><th>Status</th><th>Health</th></tr></thead>
             <tbody>
               {inventory.map((reward) => {
                 const { label, icon: Icon } = deriveCategory(reward.title || "");
@@ -92,13 +92,8 @@ export default function RewardsManagement() {
                       <span style={{ fontWeight: 800 }}>{reward.title}</span>
                     </div>
                   </td>
-                  <td>{reward.category || label}</td>
-                  <td>
-                    <span className={`badge ${reward.kind === "milestone" ? "badge-gold" : reward.audience === "child" ? "badge-amber" : reward.audience === "adult" ? "badge-green" : "badge-gray"}`}>
-                      {reward.kind === "milestone" ? "Grand award (500)" : reward.audience === "child" ? "Children" : reward.audience === "adult" ? "Adults" : "Everyone"}
-                    </span>
-                  </td>
-                  <td style={{ fontFamily: "var(--font-heading)", fontWeight: 900 }}>{reward.kind === "milestone" ? "Free" : reward.pointsCost}</td>
+                  <td>{label}</td>
+                  <td style={{ fontFamily: "var(--font-heading)", fontWeight: 900 }}>{reward.pointsCost}</td>
                   <td>{reward.stock}</td>
                   <td><span className={`badge ${status === "Live" ? "badge-green" : "badge-gray"}`}>{status}</span></td>
                   <td>

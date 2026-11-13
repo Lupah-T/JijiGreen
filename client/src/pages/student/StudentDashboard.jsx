@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth.js";
 import { getStudentDashboard } from "../../api/studentApi.js";
 import { getLeaderboard } from "../../api/rewardsApi.js";
@@ -92,9 +91,9 @@ function buildLeaderboardRows(entries = []){
     av: initials(entry.user?.name || `Rank ${index + 1}`),
   }));
 }
-function getTier(lifetime){
-  if(lifetime>=500)return{label:"Gold · Champion",bg:"#fef9c3",color:"#713f12"};
-  if(lifetime>=200)return{label:"Silver",bg:"#f1f5f9",color:"#334155"};
+function getTier(pts){
+  if(pts>=5000)return{label:"Gold",bg:"#fef9c3",color:"#713f12"};
+  if(pts>=1000)return{label:"Silver",bg:"#f1f5f9",color:"#334155"};
   return{label:"Bronze",bg:"#fef3c7",color:"#92400e"};
 }
 
@@ -266,9 +265,7 @@ export default function StudentDashboard(){
   const[points,setPoints]=useState([]);
   const[loading,setLoading]=useState(true);
   const pts=dash?.user?.ecoPoints ?? user?.ecoPoints ?? 0;
-  const lifetime=Math.max(Number(dash?.user?.lifetimePoints ?? user?.lifetimePoints ?? 0),pts);
-  const isChild=(dash?.user?.ageGroup||user?.ageGroup)==="child";
-  const tier=getTier(lifetime);
+  const tier=getTier(pts);
   const[waste,setWaste]=useState(false);
   const[qr,setQr]=useState(false);
 

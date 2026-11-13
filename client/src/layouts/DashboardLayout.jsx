@@ -3,7 +3,7 @@ import { useContext } from "react";
 import { ThemeContext } from "../context/ThemeContext.jsx";
 import Sidebar from "../components/common/Sidebar.jsx";
 import { useAuth } from "../hooks/useAuth.js";
-import { LayoutDashboard, Star, Trophy, User, CheckSquare, ClipboardList, Users, BarChart2, Gift, ClipboardCheck, MapPin, Leaf, Moon, Sun, LogOut } from "lucide-react";
+import { LayoutDashboard, Star, Trophy, User, CheckSquare, ClipboardList, Users, BarChart2, Gift, ClipboardCheck, MapPin } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 const MOBILE_NAV = {
