@@ -2,21 +2,38 @@ import User from "../models/User.js";
 import crypto from "crypto";
 import { generateToken } from "../utils/generateToken.js";
 import { sendError, sendSuccess } from "../utils/apiResponse.js";
+import { ageGroupForAge } from "../config/rewardConfig.js";
+import { lifetimeOf } from "../services/rewardEngine.js";
 import { sendPasswordResetEmail, sendPasswordChangedEmail } from "../utils/email.js";
+
+// What the client is allowed to know about a user (never the password hash etc.)
+const publicUser = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  age: user.age,
+  ageGroup: user.ageGroup,
+  ecoPoints: user.ecoPoints || 0,
+  lifetimePoints: lifetimeOf(user),
+  phone: user.phone,
+  bio: user.bio,
+  avatarUrl: user.avatarUrl,
+});
 
 export const register = async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, age } = req.body;
     const existingUser = await User.exists({ email });
 
     if (existingUser) {
       return sendError(res, 409, "User already exists");
     }
 
-    const user = await User.create({ name, email, password, role: "student" });
+    const user = await User.create({ name, email, password, role: "student", age, ageGroup: ageGroupForAge(age) });
 
     return sendSuccess(res, 201, "User registered successfully", {
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      user: publicUser(user),
       token: generateToken({ id: user._id, role: user.role }),
     });
   } catch (error) {
@@ -38,7 +55,7 @@ export const login = async (req, res, next) => {
     }
 
     return sendSuccess(res, 200, "Login successful", {
-        user: { id: user._id, name: user.name, email: user.email, role: user.role },
+        user: publicUser(user),
         token: generateToken({ id: user._id, role: user.role }),
     });
   } catch (error) {
@@ -46,8 +63,14 @@ export const login = async (req, res, next) => {
   }
 };
 
-export const me = (req, res) => {
-  sendSuccess(res, 200, "Current user retrieved successfully", req.user);
+export const me = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return sendError(res, 404, "User not found");
+    return sendSuccess(res, 200, "Current user retrieved successfully", publicUser(user));
+  } catch (error) {
+    return next(error);
+  }
 };
 
 export const forgotPassword = async (req, res, next) => {

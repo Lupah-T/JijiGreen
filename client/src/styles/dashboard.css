@@ -92,7 +92,137 @@
 .tag-inactive { border-color:var(--border); background:var(--bg-card); color:var(--text-muted); }
 .tag-inactive:hover { border-color:var(--g-300); color:var(--g-700); }
 
+.map-preview {
+  position: relative;
+  min-height: 300px;
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(90deg, rgba(22,101,52,.08) 1px, transparent 1px),
+    linear-gradient(rgba(22,101,52,.08) 1px, transparent 1px),
+    radial-gradient(circle at 25% 25%, rgba(22,163,74,.22), transparent 22%),
+    radial-gradient(circle at 70% 65%, rgba(59,130,246,.16), transparent 26%),
+    var(--bg-subtle);
+  background-size: 34px 34px, 34px 34px, auto, auto, auto;
+}
+.map-preview::after {
+  content: "";
+  position: absolute;
+  inset: 18px;
+  border: 1px dashed rgba(22,101,52,.2);
+  border-radius: 22px;
+  pointer-events: none;
+}
+.map-pin {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: var(--g-700);
+  box-shadow: 0 10px 24px rgba(22,101,52,.28);
+  transform: translate(-50%, -50%);
+  border: 3px solid rgba(255,255,255,.78);
+  z-index: 1;
+}
+.map-pin.maintenance { background: #d97706; }
+.map-pin.inactive { background: #64748b; }
+.collection-point-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  text-align: left;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-card);
+  transition: transform var(--t), border-color var(--t), box-shadow var(--t);
+}
+.collection-point-row:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-g);
+  box-shadow: var(--shadow-sm);
+}
+
 @media(max-width:768px){
   .kpi-value { font-size:24px; }
   .eco-ring-value { font-size:28px; }
 }
+
+/* ── Age note on register ── */
+.age-note { display:flex; gap:10px; align-items:flex-start; margin-top:4px; padding:10px 12px; border-radius:var(--r-md); font-size:13px; line-height:1.45; animation:fadeIn .25s ease; }
+.age-note > div { display:flex; flex-direction:column; gap:2px; }
+.age-note strong { font-weight:700; }
+.age-note span { color:var(--text-muted); }
+.age-note svg { flex-shrink:0; margin-top:1px; }
+.age-note[data-group="child"] { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; }
+.age-note[data-group="adult"] { background:var(--g-50); border:1px solid var(--g-200); color:var(--g-800); }
+
+/* ── Rewards page ── */
+.points-pill { display:flex; align-items:center; gap:10px; background:var(--g-50); border:1px solid var(--g-200); border-radius:var(--r-md); padding:10px 16px; }
+.points-pill-value { font-family:var(--font-heading); font-weight:800; font-size:20px; line-height:1; color:var(--g-800); }
+.points-pill-label { font-size:11px; color:var(--text-muted); font-weight:600; }
+.dark .points-pill { background:rgba(74,222,128,.08); border-color:var(--border-g); }
+.dark .points-pill-value { color:var(--g-300); }
+
+.filter-row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+.search-box { position:relative; flex:1 1 240px; max-width:340px; }
+.search-box svg { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--text-soft); pointer-events:none; }
+.search-box .input { padding-left:38px; }
+
+.reward-chip { position:absolute; top:10px; right:10px; border-radius:100px; padding:2px 9px; font-size:11px; font-weight:700; }
+.reward-title { font-family:var(--font-heading); font-weight:700; font-size:15px; margin-bottom:6px; }
+.reward-desc { font-size:13px; color:var(--text-muted); line-height:1.55; margin-bottom:14px; min-height:40px; }
+.reward-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.reward-pts small { font-size:12px; font-weight:600; color:var(--text-muted); }
+.reward-stock { font-size:11px; color:var(--text-muted); font-weight:500; }
+.btn-locked { background:var(--bg-subtle); color:var(--text-soft); cursor:not-allowed; border:1px solid var(--border); }
+.dark .reward-card-img { filter:brightness(.82); }
+.spin { animation:spin 700ms linear infinite; }
+.voucher-code { font-size:12px; font-weight:700; letter-spacing:.04em; background:var(--bg-subtle); padding:4px 10px; border-radius:var(--r-sm); color:var(--g-800); }
+.dark .voucher-code { color:var(--g-300); }
+
+.unlock-banner { display:flex; gap:14px; align-items:center; padding:16px 18px; border-radius:var(--r-lg); background:#fff7ed; border:1px solid #fed7aa; color:#7c2d12; }
+.unlock-banner .progress-track { background:#fed7aa; }
+.dark .unlock-banner { background:rgba(251,146,60,.1); border-color:rgba(251,146,60,.3); color:#fdba74; }
+
+.milestone-card { border-radius:var(--r-xl); padding:24px; color:#fff; background:linear-gradient(135deg,var(--g-900),#0f4a2a 60%,var(--g-800)); box-shadow:var(--shadow-md); position:relative; overflow:hidden; }
+.milestone-card::after { content:""; position:absolute; right:-60px; top:-60px; width:220px; height:220px; border-radius:50%; background:radial-gradient(circle,rgba(163,230,53,.22),transparent 70%); pointer-events:none; }
+.milestone-card.reached { background:linear-gradient(135deg,#713f12,#a16207 55%,#ca8a04); }
+.milestone-head { display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:flex-start; position:relative; z-index:1; }
+.milestone-kicker { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--lime); }
+.milestone-card.reached .milestone-kicker { color:#fef08a; }
+.milestone-title { font-size:clamp(18px,2.4vw,24px); font-weight:800; margin:8px 0 6px; color:#fff; }
+.milestone-sub { font-size:14px; color:rgba(255,255,255,.75); max-width:620px; }
+.milestone-btn { background:#fff; color:#713f12; font-weight:700; }
+.milestone-track { background:rgba(255,255,255,.18); margin-top:18px; position:relative; z-index:1; }
+.milestone-meta { display:flex; justify-content:space-between; font-size:12px; color:rgba(255,255,255,.7); margin-top:6px; position:relative; z-index:1; }
+.milestone-items { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-top:18px; position:relative; z-index:1; }
+.milestone-item { display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:var(--r-md); background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.16); opacity:.85; }
+.milestone-item.got { background:rgba(255,255,255,.2); opacity:1; }
+.milestone-emoji { font-size:28px; }
+.milestone-item-title { font-weight:700; font-size:14px; }
+.milestone-item-state { font-size:11px; display:flex; align-items:center; gap:4px; color:rgba(255,255,255,.75); margin-top:2px; word-break:break-all; }
+
+/* Certificate */
+.certificate { border-radius:var(--r-md); padding:10px; background:linear-gradient(135deg,#ca8a04,#fde68a,#ca8a04); }
+.certificate-inner { background:#fffdf5; border-radius:8px; padding:36px 24px; text-align:center; color:#1c1917; display:flex; flex-direction:column; align-items:center; gap:10px; border:2px solid #ca8a04; }
+.certificate-brand { font-family:var(--font-heading); font-weight:800; font-size:20px; color:var(--g-800); }
+.certificate-kicker { font-family:var(--font-heading); font-size:clamp(22px,4vw,30px); font-weight:900; color:#713f12; letter-spacing:.02em; }
+.certificate-small { font-size:14px; color:#57534e; }
+.certificate-name { font-family:var(--font-heading); font-size:clamp(26px,5vw,38px); font-weight:800; color:var(--g-800); border-bottom:2px solid #ca8a04; padding:2px 24px 6px; margin:4px 0; }
+.certificate-seal { margin-top:10px; display:flex; flex-direction:column; align-items:center; font-size:34px; }
+.certificate-seal span { font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#713f12; }
+
+@media print {
+  body * { visibility:hidden !important; }
+  #jg-certificate, #jg-certificate * { visibility:visible !important; }
+  #jg-certificate { position:fixed; left:0; top:0; width:100vw; }
+}
+
+.goal-card { display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+.goal-card:hover { transform:none; }

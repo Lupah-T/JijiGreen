@@ -50,6 +50,13 @@ export const registerValidation = [
     .bail()
     .matches(/\d/)
     .withMessage("Password must include at least one number"),
+  body("age")
+    .notEmpty()
+    .withMessage("Age is required")
+    .bail()
+    .isInt({ min: 4, max: 120 })
+    .withMessage("Enter a valid age between 4 and 120")
+    .toInt(),
 ];
 
 export const loginValidation = [
@@ -101,4 +108,25 @@ export const roleUpdateValidation = [
   body("role")
     .isIn(["collector", "school_admin", "operations_admin", "student", "super_admin"])
     .withMessage("Role must be one of collector, school_admin, operations_admin, student, super_admin"),
+];
+
+export const collectionPointValidation = [
+  body("name").trim().notEmpty().withMessage("Name is required").isLength({ min: 2 }),
+  body("partnerName").optional({ checkFalsy: true }).trim(),
+  body("county").trim().notEmpty().withMessage("County is required"),
+  body("address").trim().notEmpty().withMessage("Address is required"),
+  body("locationNotes").optional({ checkFalsy: true }).trim().isLength({ max: 500 }),
+  body("coordinates.lat").isFloat({ min: -90, max: 90 }).withMessage("Latitude must be valid"),
+  body("coordinates.lng").isFloat({ min: -180, max: 180 }).withMessage("Longitude must be valid"),
+  body("acceptedWasteTypes")
+    .optional()
+    .isArray({ min: 1 })
+    .withMessage("Accepted waste types must be a non-empty array"),
+  body("acceptedWasteTypes.*")
+    .optional()
+    .isIn(["plastic", "paper", "metal", "glass", "organic", "e_waste"])
+    .withMessage("Invalid waste type"),
+  body("assignedCollectors").optional().isArray().withMessage("Assigned collectors must be an array"),
+  body("assignedCollectors.*").optional().isMongoId().withMessage("Assigned collector must be a valid user id"),
+  body("status").optional().isIn(["active", "inactive", "maintenance"]).withMessage("Invalid status"),
 ];

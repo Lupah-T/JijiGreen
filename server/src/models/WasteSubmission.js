@@ -4,6 +4,7 @@ const wasteSubmissionSchema = new mongoose.Schema(
   {
     student: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     collector: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    collectionPoint: { type: mongoose.Schema.Types.ObjectId, ref: "CollectionPoint", required: true },
     wasteType: { type: String, required: true },
     weightKg: { type: Number, required: true },
     imageUrl: String,

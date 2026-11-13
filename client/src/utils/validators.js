@@ -2,7 +2,10 @@ export const isEmail = (value) => /^\S+@\S+\.\S+$/.test(String(value).trim());
 
 export const isPositiveNumber = (value) => Number(value) > 0;
 
-export const validateRegisterForm = ({ name = "", email = "", password = "" }) => {
+export const CHILD_AGE_LIMIT = 16;
+export const ageGroupFor = (age) => (Number(age) < CHILD_AGE_LIMIT ? "child" : "adult");
+
+export const validateRegisterForm = ({ name = "", email = "", password = "", age = "" }) => {
   const errors = {};
   const trimmedName = name.trim();
   const trimmedEmail = email.trim();
@@ -17,6 +20,13 @@ export const validateRegisterForm = ({ name = "", email = "", password = "" }) =
     errors.email = "Email is required";
   } else if (!isEmail(trimmedEmail)) {
     errors.email = "Invalid email format";
+  }
+
+  const ageNum = Number(age);
+  if (age === "" || age === null || age === undefined) {
+    errors.age = "Age is required";
+  } else if (!Number.isInteger(ageNum) || ageNum < 4 || ageNum > 120) {
+    errors.age = "Enter a valid age between 4 and 120";
   }
 
   if (!password) {

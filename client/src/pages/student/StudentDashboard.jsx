@@ -1,5 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth.js";
+import { getStudentDashboard } from "../../api/studentApi.js";
+import { getLeaderboard } from "../../api/rewardsApi.js";
+import { getCollectionPoints } from "../../api/collectionPointApi.js";
 import { Recycle, TrendingUp, Leaf, X, QrCode, Scale, CheckCircle,
          AlertCircle, Zap, Award, MapPin, ChevronRight } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from "recharts";
@@ -44,9 +48,53 @@ const MEDALS=["🥇","🥈","🥉"];
 /* ── Helpers ── */
 function getLevel(pts){return LEVELS.find(l=>pts>=l.min&&pts<l.max)||LEVELS[LEVELS.length-1];}
 function initials(n=""){return n.split(" ").slice(0,2).map(w=>w[0]).join("").toUpperCase()||"U";}
-function getTier(pts){
-  if(pts>=5000)return{label:"Gold",bg:"#fef9c3",color:"#713f12"};
-  if(pts>=1000)return{label:"Silver",bg:"#f1f5f9",color:"#334155"};
+function buildWeeklySeries(submissions = []){
+  const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const totals = new Map(labels.map((label) => [label, 0]));
+
+  submissions.forEach((submission) => {
+    const label = new Date(submission.createdAt).toLocaleDateString("en-US", { weekday: "short" });
+    if (totals.has(label)) {
+      totals.set(label, totals.get(label) + Number(submission.weightKg || 0));
+    }
+  });
+
+  return labels.map((label) => ({ w: label, kg: Number(totals.get(label).toFixed(1)) }));
+}
+
+function buildActivity(submissions = []){
+  return submissions.slice(0, 4).map((submission) => ({
+    id: submission._id,
+    text: `${submission.status === "verified" ? "Verified" : "Submitted"} ${Number(submission.weightKg || 0).toFixed(1)} kg ${submission.wasteType || "waste"}`,
+    time: new Date(submission.createdAt).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" }),
+    pts: submission.status === "verified" ? `+${Number(submission.pointsAwarded || 0)}` : "0",
+  }));
+}
+
+function buildNearbyPoints(points = []){
+  return points
+    .filter((point) => point.status === "active")
+    .slice(0, 3)
+    .map((point, index) => ({
+      name: point.name,
+      type: point.partnerName || point.county || "Collection point",
+      dist: point.distanceKm ? `${point.distanceKm} km away` : `${0.5 + index * 0.7} km away`,
+      open: true,
+    }));
+}
+
+function buildLeaderboardRows(entries = []){
+  return entries.slice(0, 5).map((entry, index) => ({
+    id: entry._id,
+    name: entry.user?.name || "Unknown recycler",
+    school: entry.school?.name || "Unassigned",
+    pts: Number(entry.points ?? entry.user?.ecoPoints ?? 0),
+    av: initials(entry.user?.name || `Rank ${index + 1}`),
+  }));
+}
+function getTier(lifetime){
+  if(lifetime>=500)return{label:"Gold · Champion",bg:"#fef9c3",color:"#713f12"};
+  if(lifetime>=200)return{label:"Silver",bg:"#f1f5f9",color:"#334155"};
   return{label:"Bronze",bg:"#fef3c7",color:"#92400e"};
 }
 
@@ -87,7 +135,7 @@ function SubmitModal({open,onClose}){
   const[type,setType]=useState("plastic");
   const[weight,setWeight]=useState("");
   const[done,setDone]=useState(false);
-  const pts=weight?Math.round(parseFloat(weight)||0)*WASTE_TYPES.find(w=>w.v===type)?.pts:0;
+  const pts=weight?Math.round((parseFloat(weight)||0)*(WASTE_TYPES.find(w=>w.v===type)?.pts||0)):0;
   const submit=e=>{
     e.preventDefault();
     if(!weight||parseFloat(weight)<=0)return;
@@ -111,7 +159,7 @@ function SubmitModal({open,onClose}){
               {WASTE_TYPES.map(w=>(
                 <button key={w.v} type="button" onClick={()=>setType(w.v)} style={{
                   border:`2px solid ${type===w.v?"var(--g-600)":"var(--border)"}`,
-                  background:type===w.v?"var(--g-50)":"#fff",
+                  background:type===w.v?"var(--g-50)":"var(--bg-card)",
                   borderRadius:"var(--r-md)",padding:"10px 12px",cursor:"pointer",
                   display:"flex",alignItems:"center",gap:8,transition:"all 180ms",
                   color:type===w.v?"var(--g-700)":"var(--text-muted)",fontWeight:600,fontSize:13,
@@ -213,10 +261,53 @@ function EcoRing({points}){
 /* ── Main ── */
 export default function StudentDashboard(){
   const{user}=useAuth();
-  const pts=user?.ecoPoints||0;
-  const tier=getTier(pts);
+  const[dash,setDash]=useState(null);
+  const[leaderboard,setLeaderboard]=useState([]);
+  const[points,setPoints]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const pts=dash?.user?.ecoPoints ?? user?.ecoPoints ?? 0;
+  const lifetime=Math.max(Number(dash?.user?.lifetimePoints ?? user?.lifetimePoints ?? 0),pts);
+  const isChild=(dash?.user?.ageGroup||user?.ageGroup)==="child";
+  const tier=getTier(lifetime);
   const[waste,setWaste]=useState(false);
   const[qr,setQr]=useState(false);
+
+  useEffect(()=>{
+    let active=true;
+
+    Promise.all([getStudentDashboard(), getLeaderboard(), getCollectionPoints()])
+      .then(([dashboardRes, leaderboardRes, pointsRes])=>{
+        if(!active)return;
+        setDash(dashboardRes.data.data || dashboardRes.data || null);
+        setLeaderboard(leaderboardRes.data.data || leaderboardRes.data || []);
+        setPoints(pointsRes.data.data || pointsRes.data || []);
+      })
+      .catch(()=>{
+        if(!active)return;
+        setDash(null);
+        setLeaderboard([]);
+        setPoints([]);
+      })
+      .finally(()=>{
+        if(active)setLoading(false);
+      });
+
+    return ()=>{active=false;};
+  },[]);
+
+  const submissions=dash?.submissions || [];
+  const CHART_DATA=useMemo(()=>buildWeeklySeries(submissions),[submissions]);
+  const ACTIVITY=useMemo(()=>buildActivity(submissions),[submissions]);
+  const NEARBY=useMemo(()=>buildNearbyPoints(points),[points]);
+  const LEADERBOARD=useMemo(()=>buildLeaderboardRows(leaderboard),[leaderboard]);
+  const verifiedSubmissions=submissions.filter((submission)=>submission.status==="verified");
+  const totalKg=submissions.reduce((sum,submission)=>sum+Number(submission.weightKg || 0),0);
+  const verifiedPoints=verifiedSubmissions.reduce((sum,submission)=>sum+Number(submission.pointsAwarded || 0),0);
+  const treeImpact=Math.floor(totalKg / 25);
+
+  if(loading){
+    return <div className="loader"><span className="spinner" /> Loading dashboard...</div>;
+  }
 
   return(
     <>
@@ -237,10 +328,10 @@ export default function StudentDashboard(){
       {/* KPI row */}
       <div className="dash-kpi-row">
         {[
-          {icon:Recycle,   bg:"#f0fdf4",ic:"var(--g-600)", label:"Total Submissions",  v:"12",     trend:"+3 this week",  up:true},
-          {icon:TrendingUp,bg:"#eff6ff",ic:"#3b82f6",       label:"Kg Collected",       v:"8.4 kg", trend:"+1.2 kg",       up:true},
-          {icon:Leaf,      bg:"#f7fee7",ic:"var(--lime-dk)", label:"Trees Sponsored",   v:"2",      trend:"Keep going!",   up:true},
-          {icon:Award,     bg:"#fef9c3",ic:"#d97706",        label:"Badges Earned",     v:"5",      trend:"+1 this month", up:true},
+          {icon:Recycle,   bg:"#f0fdf4",ic:"var(--g-600)", label:"Total Submissions",  v:String(submissions.length),     trend:"Live data",  up:true},
+          {icon:TrendingUp,bg:"#eff6ff",ic:"#3b82f6",       label:"Kg Collected",       v:`${totalKg.toFixed(1)} kg`, trend:"Live data",       up:true},
+          {icon:Leaf,      bg:"#f7fee7",ic:"var(--lime-dk)", label:"Trees Sponsored",   v:String(treeImpact),      trend:"Calculated from waste",   up:true},
+          {icon:Award,     bg:"#fef9c3",ic:"#d97706",        label:"Verified Points",   v:String(verifiedPoints),      trend:"From verified submissions", up:true},
         ].map(s=>(
           <div key={s.label} className="kpi-card animate-fade-up">
             <div className="kpi-card-header">
@@ -255,6 +346,25 @@ export default function StudentDashboard(){
             <div className={`kpi-trend ${s.up?"up":"down"}`}>{s.up?"↑":"↓"} {s.trend}</div>
           </div>
         ))}
+      </div>
+
+      {/* Next goal */}
+      <div className="card goal-card">
+        <div style={{flex:1,minWidth:220}}>
+          <div className="section-title" style={{marginBottom:4}}>{lifetime>=500?"🏆 Eco Champion unlocked!":"🎯 Your next goal"}</div>
+          <p style={{fontSize:13,color:"var(--text-muted)"}}>
+            {lifetime>=500
+              ? "You earned the watch, bag and certificate. Keep recycling to climb the leaderboard!"
+              : isChild&&pts<60
+                ? `Collect ${60-pts} more point${60-pts===1?"":"s"} to unlock toys and storybooks.`
+                : `${500-lifetime} more points to win the Eco Champion watch, bag and certificate.`}
+          </p>
+          <div className="progress-track" style={{marginTop:10}}>
+            <div className="progress-fill" style={{width:`${Math.min((lifetime>=500?500:isChild&&pts<60?pts/60*500:lifetime)/500*100,100)}%`}}/>
+          </div>
+          <div style={{fontSize:11,color:"var(--text-soft)",marginTop:4}}>{lifetime.toLocaleString()} / 500 total points</div>
+        </div>
+        <Link to="/student/rewards" className="btn btn-primary btn-sm"><Award size={14}/> View rewards</Link>
       </div>
 
       {/* Eco ring + Identity card */}
@@ -311,7 +421,7 @@ export default function StudentDashboard(){
       <div className="grid-2">
         <div className="chart-container">
           <div className="chart-title">Weekly Recycling</div>
-          <div className="chart-sub">Kg collected this week</div>
+          <div className="chart-sub">Kg collected from your live submissions</div>
           <ResponsiveContainer width="100%" height={180}>
             <AreaChart data={CHART_DATA}>
               <defs>
@@ -349,7 +459,7 @@ export default function StudentDashboard(){
       <div className="card">
         <div className="section-header">
           <span className="section-title">Top Recyclers</span>
-          <a href="/student/leaderboard" className="section-action">View all <ChevronRight size={13} style={{display:"inline"}}/></a>
+          <Link to="/student/leaderboard" className="section-action">View all <ChevronRight size={13} style={{display:"inline"}}/></Link>
         </div>
         {LEADERBOARD.map((e,i)=>(
           <div key={e.id} className="lb-item">

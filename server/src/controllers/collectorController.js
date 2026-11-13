@@ -1,13 +1,30 @@
 import WasteSubmission from "../models/WasteSubmission.js";
 import User from "../models/User.js";
 import CollectorApplication from "../models/CollectorApplication.js";
+import CollectionPoint from "../models/CollectionPoint.js";
 import { calculateEcoPoints } from "../utils/calculations.js";
 import { writeAuditLog } from "../services/auditService.js";
+import { awardPoints } from "../services/rewardEngine.js";
 
 export const createWasteSubmission = async (req, res) => {
+  const collectionPoint = await CollectionPoint.findOne({
+    _id: req.body.collectionPoint,
+    status: "active",
+    assignedCollectors: req.user._id,
+  });
+
+  if (!collectionPoint) {
+    return res.status(403).json({ message: "Collector is not assigned to this active collection point" });
+  }
+
+  if (!collectionPoint.acceptedWasteTypes.includes(req.body.wasteType)) {
+    return res.status(422).json({ message: "Waste type is not accepted at this collection point" });
+  }
+
   const submission = await WasteSubmission.create({
     student: req.body.student,
     collector: req.user._id,
+    collectionPoint: collectionPoint._id,
     wasteType: req.body.wasteType,
     weightKg: req.body.weightKg,
     imageUrl: req.file ? `/uploads/${req.file.filename}` : undefined,
@@ -16,26 +33,57 @@ export const createWasteSubmission = async (req, res) => {
   res.status(201).json(submission);
 };
 
-export const verifyWasteSubmission = async (req, res) => {
-  const submission = await WasteSubmission.findById(req.params.id);
+export const verifyWasteSubmission = async (req, res, next) => {
+  try {
+    const submission = await WasteSubmission.findById(req.params.id);
 
-  if (!submission) {
-    return res.status(404).json({ message: "Submission not found" });
+    if (!submission) {
+      return res.status(404).json({ message: "Submission not found" });
+    }
+
+    // A submission can only be decided once - prevents awarding the same points twice
+    if (submission.status !== "pending") {
+      return res.status(409).json({ message: `Submission was already ${submission.status}` });
+    }
+
+    const status = ["verified", "rejected"].includes(req.body.status) ? req.body.status : "verified";
+    submission.status = status;
+    submission.pointsAwarded = status === "verified" ? calculateEcoPoints(submission.weightKg) : 0;
+    await submission.save();
+
+    let milestoneIssued = false;
+    if (status === "verified") {
+      ({ milestoneIssued } = await awardPoints(submission.student, submission.pointsAwarded));
+    }
+
+    res.json({ ...submission.toObject(), milestoneIssued });
+  } catch (error) {
+    next(error);
   }
-
-  submission.status = req.body.status || "verified";
-  submission.pointsAwarded = submission.status === "verified" ? calculateEcoPoints(submission.weightKg) : 0;
-
-  if (submission.status === "verified") {
-    await User.findByIdAndUpdate(submission.student, { $inc: { ecoPoints: submission.pointsAwarded } });
-  }
-
-  await submission.save();
-  res.json(submission);
 };
 
 export const getCollectionHistory = async (req, res) => {
-  const submissions = await WasteSubmission.find({ collector: req.user._id }).sort({ createdAt: -1 });
+  const submissions = await WasteSubmission.find({ collector: req.user._id })
+    .populate("student", "name email role")
+    .populate("collectionPoint", "name county address")
+    .sort({ createdAt: -1 });
+  res.json(submissions);
+};
+
+export const getPendingSubmissions = async (req, res) => {
+  const assignedPoints = await CollectionPoint.find({
+    status: "active",
+    assignedCollectors: req.user._id,
+  }).select("_id");
+
+  const submissions = await WasteSubmission.find({
+    status: "pending",
+    collectionPoint: { $in: assignedPoints.map((point) => point._id) },
+  })
+    .populate("student", "name email role school")
+    .populate("collectionPoint", "name county address acceptedWasteTypes")
+    .sort({ createdAt: -1 });
+
   res.json(submissions);
 };
 

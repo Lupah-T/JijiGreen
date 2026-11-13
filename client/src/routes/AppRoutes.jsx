@@ -14,6 +14,7 @@ import Login from "../pages/auth/Login.jsx";
 import Register from "../pages/auth/Register.jsx";
 import AdminDashboard from "../pages/admin/AdminDashboard.jsx";
 import Analytics from "../pages/admin/Analytics.jsx";
+import CollectionPoints from "../pages/admin/CollectionPoints.jsx";
 import RewardsManagement from "../pages/admin/RewardsManagement.jsx";
 import Schools from "../pages/admin/Schools.jsx";
 import Users from "../pages/admin/Users.jsx";
@@ -27,6 +28,7 @@ import Profile from "../pages/student/Profile.jsx";
 import Rewards from "../pages/student/Rewards.jsx";
 import StudentDashboard from "../pages/student/StudentDashboard.jsx";
 import CollectorApplication from "../pages/student/CollectorApplication.jsx";
+import StudentCollectionPoints from "../pages/student/CollectionPoints.jsx";
 
 export default function AppRoutes() {
   return (
@@ -50,6 +52,7 @@ export default function AppRoutes() {
           <Route path="student/leaderboard" element={<StudentLeaderboard />} />
           <Route path="student/profile" element={<Profile />} />
           <Route path="student/history" element={<History />} />
+          <Route path="student/collection-points" element={<StudentCollectionPoints />} />
           <Route path="student/apply-collector" element={<CollectorApplication />} />
         </Route>
         <Route element={<ProtectedRoute allowedRoles={["collector", "operations_admin", "super_admin"]} />}>
@@ -60,6 +63,7 @@ export default function AppRoutes() {
         <Route element={<ProtectedRoute allowedRoles={["school_admin", "operations_admin", "super_admin"]} />}>
           <Route path="admin/dashboard" element={<AdminDashboard />} />
           <Route path="admin/schools" element={<Schools />} />
+          <Route path="admin/collection-points" element={<CollectionPoints />} />
           <Route path="admin/analytics" element={<Analytics />} />
         </Route>
         <Route element={<ProtectedRoute allowedRoles={["operations_admin", "super_admin"]} />}>
