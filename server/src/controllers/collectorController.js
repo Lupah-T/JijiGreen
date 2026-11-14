@@ -4,6 +4,7 @@ import CollectorApplication from "../models/CollectorApplication.js";
 import CollectionPoint from "../models/CollectionPoint.js";
 import { calculateEcoPoints } from "../utils/calculations.js";
 import { writeAuditLog } from "../services/auditService.js";
+import { awardPoints } from "../services/rewardEngine.js";
 
 export const createWasteSubmission = async (req, res) => {
   const collectionPoint = await CollectionPoint.findOne({
@@ -32,22 +33,33 @@ export const createWasteSubmission = async (req, res) => {
   res.status(201).json(submission);
 };
 
-export const verifyWasteSubmission = async (req, res) => {
-  const submission = await WasteSubmission.findById(req.params.id);
+export const verifyWasteSubmission = async (req, res, next) => {
+  try {
+    const submission = await WasteSubmission.findById(req.params.id);
 
-  if (!submission) {
-    return res.status(404).json({ message: "Submission not found" });
+    if (!submission) {
+      return res.status(404).json({ message: "Submission not found" });
+    }
+
+    // A submission can only be decided once - prevents awarding the same points twice
+    if (submission.status !== "pending") {
+      return res.status(409).json({ message: `Submission was already ${submission.status}` });
+    }
+
+    const status = ["verified", "rejected"].includes(req.body.status) ? req.body.status : "verified";
+    submission.status = status;
+    submission.pointsAwarded = status === "verified" ? calculateEcoPoints(submission.weightKg) : 0;
+    await submission.save();
+
+    let milestoneIssued = false;
+    if (status === "verified") {
+      ({ milestoneIssued } = await awardPoints(submission.student, submission.pointsAwarded));
+    }
+
+    res.json({ ...submission.toObject(), milestoneIssued });
+  } catch (error) {
+    next(error);
   }
-
-  submission.status = req.body.status || "verified";
-  submission.pointsAwarded = submission.status === "verified" ? calculateEcoPoints(submission.weightKg) : 0;
-
-  if (submission.status === "verified") {
-    await User.findByIdAndUpdate(submission.student, { $inc: { ecoPoints: submission.pointsAwarded } });
-  }
-
-  await submission.save();
-  res.json(submission);
 };
 
 export const getCollectionHistory = async (req, res) => {

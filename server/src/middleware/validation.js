@@ -50,6 +50,13 @@ export const registerValidation = [
     .bail()
     .matches(/\d/)
     .withMessage("Password must include at least one number"),
+  body("age")
+    .notEmpty()
+    .withMessage("Age is required")
+    .bail()
+    .isInt({ min: 4, max: 120 })
+    .withMessage("Enter a valid age between 4 and 120")
+    .toInt(),
 ];
 
 export const loginValidation = [

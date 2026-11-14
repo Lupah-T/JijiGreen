@@ -134,7 +134,7 @@ function SubmitModal({open,onClose}){
   const[type,setType]=useState("plastic");
   const[weight,setWeight]=useState("");
   const[done,setDone]=useState(false);
-  const pts=weight?Math.round(parseFloat(weight)||0)*WASTE_TYPES.find(w=>w.v===type)?.pts:0;
+  const pts=weight?Math.round((parseFloat(weight)||0)*(WASTE_TYPES.find(w=>w.v===type)?.pts||0)):0;
   const submit=e=>{
     e.preventDefault();
     if(!weight||parseFloat(weight)<=0)return;
@@ -158,7 +158,7 @@ function SubmitModal({open,onClose}){
               {WASTE_TYPES.map(w=>(
                 <button key={w.v} type="button" onClick={()=>setType(w.v)} style={{
                   border:`2px solid ${type===w.v?"var(--g-600)":"var(--border)"}`,
-                  background:type===w.v?"var(--g-50)":"#fff",
+                  background:type===w.v?"var(--g-50)":"var(--bg-card)",
                   borderRadius:"var(--r-md)",padding:"10px 12px",cursor:"pointer",
                   display:"flex",alignItems:"center",gap:8,transition:"all 180ms",
                   color:type===w.v?"var(--g-700)":"var(--text-muted)",fontWeight:600,fontSize:13,
@@ -345,6 +345,25 @@ export default function StudentDashboard(){
         ))}
       </div>
 
+      {/* Next goal */}
+      <div className="card goal-card">
+        <div style={{flex:1,minWidth:220}}>
+          <div className="section-title" style={{marginBottom:4}}>{lifetime>=500?"🏆 Eco Champion unlocked!":"🎯 Your next goal"}</div>
+          <p style={{fontSize:13,color:"var(--text-muted)"}}>
+            {lifetime>=500
+              ? "You earned the watch, bag and certificate. Keep recycling to climb the leaderboard!"
+              : isChild&&pts<60
+                ? `Collect ${60-pts} more point${60-pts===1?"":"s"} to unlock toys and storybooks.`
+                : `${500-lifetime} more points to win the Eco Champion watch, bag and certificate.`}
+          </p>
+          <div className="progress-track" style={{marginTop:10}}>
+            <div className="progress-fill" style={{width:`${Math.min((lifetime>=500?500:isChild&&pts<60?pts/60*500:lifetime)/500*100,100)}%`}}/>
+          </div>
+          <div style={{fontSize:11,color:"var(--text-soft)",marginTop:4}}>{lifetime.toLocaleString()} / 500 total points</div>
+        </div>
+        <Link to="/student/rewards" className="btn btn-primary btn-sm"><Award size={14}/> View rewards</Link>
+      </div>
+
       {/* Eco ring + Identity card */}
       <div className="grid-2">
         <div className="card"><EcoRing points={pts}/></div>
@@ -437,7 +456,7 @@ export default function StudentDashboard(){
       <div className="card">
         <div className="section-header">
           <span className="section-title">Top Recyclers</span>
-          <a href="/student/leaderboard" className="section-action">View all <ChevronRight size={13} style={{display:"inline"}}/></a>
+          <Link to="/student/leaderboard" className="section-action">View all <ChevronRight size={13} style={{display:"inline"}}/></Link>
         </div>
         {LEADERBOARD.map((e,i)=>(
           <div key={e.id} className="lb-item">

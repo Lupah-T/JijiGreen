@@ -627,3 +627,19 @@ Target:
 # 🌱 JijiGreen
 
 ### “Community-Powered Environmental Action”
+
+---
+
+# 🎁 Age-Based Rewards (Junior vs Adult)
+
+When registering, every user enters their **age**:
+
+| Group | Age | Rewards | Unlocks at |
+|-------|-----|---------|-----------|
+| **Junior Recycler** | under 16 | Toys, storybooks, puzzles, games, stationery, sports gear | **60 points** |
+| **Adult Recycler** | 16 and above | Airtime, data bundles, shopping vouchers, eco rewards | per reward (100+ pts) |
+
+## 🏆 Grand Award - 500 total points
+Once a user has **earned 500 points in total** (spending points on rewards does *not* reduce this), they are automatically awarded an **Eco Champion** pack: a **watch, a bag and a certificate** (printable from the Rewards page). Applies to both children and adults.
+
+Rules live in `server/src/config/rewardConfig.js` (age limit, 60-point child minimum, 500-point milestone and the default reward catalogue, which is seeded automatically on first start).

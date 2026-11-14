@@ -1,4 +1,6 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
+import { useContext } from "react";
+import { ThemeContext } from "../context/ThemeContext.jsx";
 import Sidebar from "../components/common/Sidebar.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import { LayoutDashboard, Star, Trophy, User, CheckSquare, ClipboardList, Users, BarChart2, Gift, ClipboardCheck, MapPin } from "lucide-react";
@@ -13,13 +15,22 @@ const MOBILE_NAV = {
 };
 
 export default function DashboardLayout() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useContext(ThemeContext) || {};
+  const navigate = useNavigate();
   const role = user?.role || localStorage.getItem("role") || "student";
   const mobileLinks = MOBILE_NAV[role] || MOBILE_NAV.student;
 
   return (
     <div className="dashboard-shell">
       <Sidebar />
+      <header className="mobile-topbar">
+        <span className="brand"><Leaf size={18} /> JijiGreen</span>
+        <div className="actions">
+          <button onClick={toggleTheme} aria-label="Toggle theme">{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}</button>
+          <button onClick={() => { logout(); navigate("/login"); }} aria-label="Log out"><LogOut size={18} /></button>
+        </div>
+      </header>
       <main className="dashboard-main">
         <Outlet />
       </main>

@@ -98,13 +98,20 @@ export default function Rewards() {
 
   return (
     <>
+      {showCert && <Certificate name={user?.name} onClose={() => setShowCert(false)} />}
+
       <div className="dashboard-header">
         <div>
           <h1 className="page-title">Rewards Marketplace</h1>
-          <p className="page-subtitle">Exchange your eco-points for real rewards.</p>
+          <p className="page-subtitle">
+            {isChild ? "Swap your eco-points for toys, storybooks and games." : "Exchange your eco-points for airtime, vouchers and more."}
+          </p>
+          <span className={`badge ${isChild ? "badge-amber" : "badge-green"}`} style={{ marginTop: 10 }}>
+            {isChild ? <Baby size={13} /> : <UserRound size={13} />} {isChild ? "Junior Recycler · under 16" : "Adult Recycler · 16+"}
+          </span>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:10,background:"var(--g-50)",border:"1px solid var(--g-200)",borderRadius:"var(--r-md)",padding:"10px 16px"}}>
-          <Zap size={18} style={{color:"var(--lime-dk)"}}/>
+        <div className="points-pill">
+          <Zap size={18} style={{ color: "var(--lime-dk)" }} />
           <div>
             <div style={{fontFamily:"var(--font-heading)",fontWeight:800,fontSize:20,lineHeight:1,color:"var(--g-800)"}}>{userPoints.toLocaleString()}</div>
             <div style={{fontSize:11,color:"var(--text-muted)",fontWeight:600}}>Eco Points</div>
@@ -191,6 +198,23 @@ export default function Rewards() {
           );
         })}
       </div>
+
+      {/* Voucher wallet */}
+      {otherVouchers.length > 0 && (
+        <div className="card">
+          <div className="section-header"><span className="section-title"><Ticket size={15} style={{ display: "inline", marginRight: 6 }} />My vouchers</span></div>
+          {otherVouchers.slice(0, 6).map((v) => (
+            <div key={v._id} className="activity-item">
+              <div style={{ fontSize: 22 }}>{v.reward?.emoji || <Gift size={18} />}</div>
+              <div style={{ flex: 1 }}>
+                <div className="activity-text">{v.reward?.title || "Reward"}</div>
+                <div className="activity-meta">{new Date(v.createdAt).toLocaleDateString("en-KE", { dateStyle: "medium" })}</div>
+              </div>
+              <code className="voucher-code">{v.code}</code>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }

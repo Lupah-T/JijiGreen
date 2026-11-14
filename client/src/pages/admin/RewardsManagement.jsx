@@ -51,7 +51,7 @@ export default function RewardsManagement() {
           <h1 className="page-title">Reward Management</h1>
           <p className="page-subtitle">Manage reward inventory, redemption economics, and marketplace visibility.</p>
         </div>
-        <button className="btn btn-primary"><Plus size={15} /> New reward</button>
+        
       </div>
 
       <div className="dash-kpi-row">

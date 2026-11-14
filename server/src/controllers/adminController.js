@@ -332,7 +332,8 @@ export const getUserDetails = async (req, res) => {
       .sort({ createdAt: -1 });
 
     const totalPointsRedeemed = vouchers.reduce((sum, v) => {
-      return sum + (v.reward?.pointsCost || 0);
+      // Grand (milestone) awards are free - they cost the user no points
+      return sum + (v.reward?.kind === "milestone" ? 0 : v.reward?.pointsCost || 0);
     }, 0);
 
     res.json({

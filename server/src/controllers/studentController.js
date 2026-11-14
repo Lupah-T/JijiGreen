@@ -17,7 +17,7 @@ export const getStudentHistory = async (req, res) => {
 
 export const getProfile = async (req, res) => {
   const user = await User.findById(req.user._id).select("-password");
-  res.json({ success: true, data: user });
+  res.json({ success: true, data: { ...user.toObject(), lifetimePoints: Math.max(user.lifetimePoints || 0, user.ecoPoints || 0) } });
 };
 
 export const updateProfile = async (req, res) => {

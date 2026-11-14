@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Leaf, Eye, EyeOff, ArrowRight, QrCode } from "lucide-react";
+import { Leaf, Eye, EyeOff, ArrowRight, QrCode, Baby, UserRound } from "lucide-react";
 import { authService } from "../../services/authService.js";
-import { validateRegisterForm } from "../../utils/validators.js";
+import { validateRegisterForm, ageGroupFor } from "../../utils/validators.js";
 import { useAuth } from "../../hooks/useAuth.js";
 
 function PasswordStrength({ pw }) {
@@ -23,11 +23,14 @@ function PasswordStrength({ pw }) {
 export default function Register() {
   const navigate = useNavigate();
   const { setUser } = useAuth();
-  const [form, setForm] = useState({ name:"", email:"", password:"" });
+  const [form, setForm] = useState({ name:"", email:"", password:"", age:"" });
   const [errors, setErrors] = useState({});
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [show, setShow] = useState(false);
+
+  const hasAge = form.age !== "" && Number(form.age) >= 4;
+  const group = hasAge ? ageGroupFor(form.age) : null;
 
   const set = (k) => (e) => setForm(p=>({...p,[k]:e.target.value}));
 
@@ -38,7 +41,7 @@ export default function Register() {
     if (Object.keys(v).length > 0) return;
     setBusy(true);
     try {
-      const r = await authService.register({ name: form.name.trim(), email: form.email.trim(), password: form.password });
+      const r = await authService.register({ name: form.name.trim(), email: form.email.trim(), password: form.password, age: Number(form.age) });
       if (r.success) {
         if (r.user) setUser(r.user);
         localStorage.setItem("role", r.user?.role || "student");
@@ -68,7 +71,7 @@ export default function Register() {
           </p>
           {/* SDG chips */}
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {["Student by default","QR Eco ID","RBAC protected"].map(s=>(
+            {["Kids & adults welcome","QR Eco ID","Real rewards"].map(s=>(
               <span key={s} style={{background:"rgba(74,222,128,.15)",border:"1px solid rgba(74,222,128,.25)",borderRadius:100,padding:"5px 14px",fontSize:13,color:"var(--g-300)",fontWeight:600}}>{s}</span>
             ))}
           </div>
@@ -102,6 +105,24 @@ export default function Register() {
               {errors.email&&<span className="field-error">{errors.email}</span>}
             </div>
 
+            {/* Age */}
+            <div className="field">
+              <label className="field-label" htmlFor="reg-age">Your age</label>
+              <input id="reg-age" className="input" type="number" inputMode="numeric" min="4" max="120" placeholder="e.g. 14" required value={form.age} onChange={set("age")}/>
+              {errors.age&&<span className="field-error">{errors.age}</span>}
+              {group&&(
+                <div className="age-note" data-group={group}>
+                  {group==="child"?<Baby size={18}/>:<UserRound size={18}/>}
+                  <div>
+                    <strong>{group==="child"?"Junior Recycler (under 16)":"Adult Recycler (16 and above)"}</strong>
+                    <span>{group==="child"
+                      ? "From 60 points you can win toys, storybooks, puzzles and games."
+                      : "Earn airtime, data bundles, shopping vouchers and eco rewards."}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Password */}
             <div className="field">
               <label className="field-label" htmlFor="reg-pass">Password</label>
@@ -118,9 +139,9 @@ export default function Register() {
             <div style={{display:"flex",gap:12,alignItems:"flex-start",background:"var(--g-50)",border:"1px solid var(--g-100)",borderRadius:"var(--r-md)",padding:14}}>
               <QrCode size={20} style={{color:"var(--g-700)",flexShrink:0,marginTop:2}}/>
               <div>
-                <div style={{fontWeight:800,fontSize:14}}>All public accounts start as students</div>
+                <div style={{fontWeight:800,fontSize:14}}>Every point you earn counts</div>
                 <p style={{fontSize:13,color:"var(--text-muted)",marginTop:2}}>
-                  Collector and admin access is assigned later through secure review by authorized staff.
+                  Reach 500 total points to win an Eco Champion watch, bag and certificate. Collector and admin access is assigned later by authorized staff.
                 </p>
               </div>
             </div>

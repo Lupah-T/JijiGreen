@@ -37,7 +37,14 @@ const userSchema = new mongoose.Schema(
     },
     isActive: { type: Boolean, default: true },
     school: { type: mongoose.Schema.Types.ObjectId, ref: "School" },
+    age: { type: Number, min: [4, "Age must be at least 4"], max: [120, "Please enter a valid age"] },
+    // "child" = under 16, "adult" = 16 and above. Drives which rewards a user can see/redeem.
+    ageGroup: { type: String, enum: ["child", "adult"], default: "adult", index: true },
+    // Spendable balance (goes down when the user redeems a reward)
     ecoPoints: { type: Number, default: 0 },
+    // Total points ever earned (never goes down) - used for the 500-point milestone
+    lifetimePoints: { type: Number, default: 0 },
+    milestoneAwardedAt: { type: Date },
     phone:     { type: String, trim: true },
     bio:       { type: String, maxlength: [300, "Bio max 300 characters"] },
     avatarUrl: { type: String },
@@ -55,6 +62,10 @@ userSchema.pre("save", async function hashPassword(next) {
 
 userSchema.methods.matchPassword = function matchPassword(password) {
   return bcrypt.compare(password, this.password);
+};
+
+userSchema.statics.groupForAge = function groupForAge(age) {
+  return Number(age) < 16 ? "child" : "adult";
 };
 
 export default mongoose.model("User", userSchema);

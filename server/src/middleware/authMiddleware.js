@@ -30,3 +30,18 @@ export const protect = async (req, res, next) => {
     res.status(401).json({ message: "Token invalid or expired" });
   }
 };
+
+// Same as protect, but never blocks: used by public endpoints that personalise their response.
+export const optionalProtect = async (req, _res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) return next();
+
+  try {
+    const decoded = jwt.verify(authHeader.split(" ")[1], jwtConfig.secret);
+    const user = await User.findById(decoded.id).select("_id role isActive");
+    if (user?.isActive) req.user = { id: user._id.toString(), _id: user._id, role: user.role };
+  } catch {
+    // ignore bad tokens - the visitor is treated as signed out
+  }
+  next();
+};
