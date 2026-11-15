@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, LoaderCircle } from "lucide-react";
 import { getCollectionHistory } from "../../api/collectorApi.js";
+import { useEffect, useState } from "react";
 import SubmissionTable from "../../components/collector/SubmissionTable.jsx";
+import { getCollectionHistory } from "../../api/collectorApi.js";
 
 export default function CollectionHistory() {
   const [submissions, setSubmissions] = useState([]);
@@ -27,6 +29,28 @@ export default function CollectionHistory() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    getCollectionHistory()
+      .then(({ data }) => {
+        if (!active) return;
+        setHistory(data.data || data || []);
+      })
+      .catch(() => {
+        if (active) setHistory([]);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <>
@@ -58,6 +82,10 @@ export default function CollectionHistory() {
           <SubmissionTable submissions={submissions} />
         )}
       </div>
+          <p className="page-subtitle">Live record of submissions verified from your assigned collection points.</p>
+        </div>
+      </div>
+      {loading ? <div className="loader"><span className="spinner" /> Loading history...</div> : <SubmissionTable submissions={history} />}
     </>
   );
 }

@@ -2,18 +2,22 @@ import WasteSubmission from "../models/WasteSubmission.js";
 import User from "../models/User.js";
 
 export const getStudentDashboard = async (req, res) => {
-  const submissions = await WasteSubmission.find({ student: req.user._id }).sort({ createdAt: -1 });
+  const submissions = await WasteSubmission.find({ student: req.user._id })
+    .populate("collectionPoint", "name county address status")
+    .sort({ createdAt: -1 });
   res.json({ user: req.user, submissions });
 };
 
 export const getStudentHistory = async (req, res) => {
-  const history = await WasteSubmission.find({ student: req.user._id }).sort({ createdAt: -1 });
+  const history = await WasteSubmission.find({ student: req.user._id })
+    .populate("collectionPoint", "name county address status")
+    .sort({ createdAt: -1 });
   res.json(history);
 };
 
 export const getProfile = async (req, res) => {
   const user = await User.findById(req.user._id).select("-password");
-  res.json({ success: true, data: user });
+  res.json({ success: true, data: { ...user.toObject(), lifetimePoints: Math.max(user.lifetimePoints || 0, user.ecoPoints || 0) } });
 };
 
 export const updateProfile = async (req, res) => {

@@ -4,6 +4,7 @@ import {
   createWasteSubmission,
   getCollectionHistory,
   getMyCollectorApplication,
+  getPendingSubmissions,
   verifyWasteSubmission,
 } from "../controllers/collectorController.js";
 import { protect } from "../middleware/authMiddleware.js";
@@ -28,6 +29,7 @@ router.post(
 router.get("/application", protect, roleMiddleware("student", "collector"), getMyCollectorApplication);
 
 router.use(protect, roleMiddleware("collector", "operations_admin", "super_admin"));
+router.get("/pending", getPendingSubmissions);
 router.post("/submissions", uploadWasteImage, wasteSubmissionValidation, handleValidation, createWasteSubmission);
 router.patch("/submissions/:id/verify", verifyWasteSubmission);
 router.get("/history", getCollectionHistory);
