@@ -4,6 +4,7 @@ import morgan from "morgan";
 import path from "path";
 import { fileURLToPath } from "url";
 import adminRoutes from "./routes/adminRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import collectorRoutes from "./routes/collectorRoutes.js";
 import collectionPointRoutes from "./routes/collectionPointRoutes.js";
@@ -24,6 +25,7 @@ app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 app.use("/api/auth", authRoutes);
+app.use("/api/ai", aiRoutes);
 app.use("/api/student", studentRoutes);
 app.use("/api/collector", collectorRoutes);
 app.use("/api/collection-points", collectionPointRoutes);

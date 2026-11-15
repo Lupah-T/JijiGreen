@@ -3,6 +3,11 @@ import { useContext } from "react";
 import { ThemeContext } from "../context/ThemeContext.jsx";
 import Sidebar from "../components/common/Sidebar.jsx";
 import { useAuth } from "../hooks/useAuth.js";
+import { LayoutDashboard, Star, Trophy, User, CheckSquare, ClipboardList, Users, BarChart2, Gift, ClipboardCheck, Sparkles } from "lucide-react";
+import { NavLink } from "react-router-dom";
+
+const MOBILE_NAV = {
+  student:   [{ to:"/student/dashboard", I:LayoutDashboard, l:"Home" }, { to:"/student/identify-waste", I:Sparkles, l:"AI" }, { to:"/student/rewards", I:Star, l:"Rewards" }, { to:"/student/leaderboard", I:Trophy, l:"Ranks" }, { to:"/student/apply-collector", I:ClipboardCheck, l:"Apply" }, { to:"/student/profile", I:User, l:"Profile" }],
 import { LayoutDashboard, Star, Trophy, User, CheckSquare, ClipboardList, Users, BarChart2, Gift, ClipboardCheck, MapPin } from "lucide-react";
 import { NavLink } from "react-router-dom";
 

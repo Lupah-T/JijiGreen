@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useContext } from "react";
 import { Leaf, LayoutDashboard, Star, Trophy, History, User,
          CheckSquare, ClipboardList, Users, School, BarChart2,
+         Gift, LogOut, Moon, Sun, ClipboardCheck, Sparkles } from "lucide-react";
          Gift, LogOut, Moon, Sun, ClipboardCheck, MapPin } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
 import { ThemeContext } from "../../context/ThemeContext.jsx";
@@ -9,6 +10,7 @@ import { ThemeContext } from "../../context/ThemeContext.jsx";
 const NAV = {
   student: [
     { to: "/student/dashboard",   label: "Dashboard",   icon: LayoutDashboard },
+    { to: "/student/identify-waste", label: "Identify Waste", icon: Sparkles },
     { to: "/student/rewards",     label: "Rewards",     icon: Star },
     { to: "/student/leaderboard", label: "Leaderboard", icon: Trophy },
     { to: "/student/collection-points", label: "Collection Points", icon: MapPin },

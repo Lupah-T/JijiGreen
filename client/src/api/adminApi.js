@@ -15,3 +15,4 @@ export const createCollectionPoint = (payload) => api.post("/admin/collection-po
 export const updateCollectionPoint = (id, payload) => api.put(`/admin/collection-points/${id}`, payload);
 export const updateUserRole = (userId, payload) => api.patch(`/admin/users/${userId}/role`, payload);
 export const getUserDetails = (userId) => api.get(`/admin/users/${userId}/details`);
+export const getWasteIntelligence = () => api.get("/admin/analytics/waste-intelligence");
