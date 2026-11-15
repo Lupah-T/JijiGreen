@@ -92,6 +92,24 @@
 .tag-inactive { border-color:var(--border); background:var(--bg-card); color:var(--text-muted); }
 .tag-inactive:hover { border-color:var(--g-300); color:var(--g-700); }
 
+/* Map styles */
+.map-shell { border:1px solid var(--border); border-radius:var(--r-xl); overflow:hidden; background:var(--bg-subtle); }
+.map-shell .leaflet-container { background:#dfeaf2; }
+.map-shell .leaflet-popup-content-wrapper { border-radius:12px; }
+.map-shell .leaflet-popup-content { margin:10px 12px; font-size:13px; line-height:1.5; }
+.map-pin { display:flex; align-items:center; justify-content:center; border-radius:50%; position:relative; box-shadow:0 8px 18px rgba(13,92,63,0.22); }
+.map-pin::after { content:""; position:absolute; inset:0; border-radius:50%; animation:pulsePin 1.8s infinite ease-out; }
+.user-pin-mark { width:18px; height:18px; background:linear-gradient(135deg,#0f766e,#10b981); border:3px solid #fff; }
+.user-pin-mark::before { content:""; width:6px; height:6px; border-radius:50%; background:#fff; display:block; }
+.facility-pin-mark { width:18px; height:18px; background:linear-gradient(135deg,#f59e0b,#ef4444); border:3px solid #fff; }
+.facility-pin-mark::before { content:""; width:6px; height:6px; border-radius:50%; background:#fff; display:block; }
+
+@keyframes pulsePin {
+  0% { transform:scale(0.9); opacity:0.9; }
+  70% { transform:scale(1.8); opacity:0; }
+  100% { transform:scale(2); opacity:0; }
+}
+
 @media(max-width:768px){
   .kpi-value { font-size:24px; }
   .eco-ring-value { font-size:28px; }
