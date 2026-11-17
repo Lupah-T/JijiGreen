@@ -5,8 +5,8 @@ import { Camera, Save, Phone, FileText, Award, Zap, CheckCircle, AlertCircle, Us
 
 function initials(n=""){return n.split(" ").slice(0,2).map(w=>w[0]).join("").toUpperCase()||"U";}
 function getTier(pts){
-  if(pts>=5000)return{label:"Gold",bg:"#fef9c3",color:"#713f12"};
-  if(pts>=1000)return{label:"Silver",bg:"#f1f5f9",color:"#334155"};
+  if(pts>=500)return{label:"Gold",bg:"#fef9c3",color:"#713f12"};
+  if(pts>=200)return{label:"Silver",bg:"#f1f5f9",color:"#334155"};
   return{label:"Bronze",bg:"#fef3c7",color:"#92400e"};
 }
 
@@ -62,7 +62,7 @@ export default function Profile(){
   };
 
   const showToast=(type,msg)=>{setToast({type,msg});setTimeout(()=>setToast(null),3500);};
-  const tier=getTier(profile?.ecoPoints||0);
+  const tier=getTier(Math.max(profile?.lifetimePoints||0,profile?.ecoPoints||0));
 
   if(loading)return<div className="loader"><span className="spinner"/>Loading profile…</div>;
 
@@ -95,6 +95,7 @@ export default function Profile(){
           <div>
             <div style={{fontFamily:"var(--font-heading)",fontWeight:700,fontSize:17}}>{form.name||"Your Name"}</div>
             <div style={{color:"var(--text-muted)",fontSize:13,marginTop:2}}>{profile?.email}</div>
+            {profile?.ageGroup&&<span className={`badge ${profile.ageGroup==="child"?"badge-amber":"badge-green"}`} style={{marginTop:6}}>{profile.ageGroup==="child"?"Junior Recycler (under 16)":"Adult Recycler"}{profile.age?` · ${profile.age} yrs`:""}</span>}
           </div>
           <span style={{background:tier.bg,color:tier.color,borderRadius:100,padding:"5px 14px",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
             <Award size={13}/> {tier.label} Member

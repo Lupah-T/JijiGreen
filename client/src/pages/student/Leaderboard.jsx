@@ -1,39 +1,84 @@
-import { useState } from "react";
-import { Trophy, Users, School, Star, Filter, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { School, Search, Star, Trophy, Users } from "lucide-react";
+import { useAuth } from "../../hooks/useAuth.js";
+import { getLeaderboard } from "../../api/rewardsApi.js";
 
-const MEDALS = ["🥇","🥈","🥉"];
-const ALL_ENTRIES = [
-  {id:"1",name:"Amina Odhiambo",school:"Westlands Academy",pts:3420,kg:171,av:"AO",badge:"Gold"},
-  {id:"2",name:"Brian Mutua",school:"Nairobi High School",pts:2870,kg:143.5,av:"BM",badge:"Gold"},
-  {id:"3",name:"Chloe Wanjiku",school:"Karen C School",pts:2150,kg:107.5,av:"CW",badge:"Silver"},
-  {id:"4",name:"David Kamau",school:"Strathmore Prep",pts:1600,kg:80,av:"DK",badge:"Silver"},
-  {id:"5",name:"Eve Adhiambo",school:"Lavington School",pts:980,kg:49,av:"EA",badge:"Bronze"},
-  {id:"6",name:"Felix Omondi",school:"University of Nairobi",pts:840,kg:42,av:"FO",badge:"Bronze"},
-  {id:"7",name:"Grace Njeri",school:"Kenyatta University",pts:620,kg:31,av:"GN",badge:"Bronze"},
-  {id:"8",name:"Hassan Ali",school:"Moi University",pts:510,kg:25.5,av:"HA",badge:"Bronze"},
-];
-const SCHOOL_RANKS = [
-  {name:"Westlands Academy",total:12480,members:24},
-  {name:"Nairobi High School",total:10240,members:19},
-  {name:"University of Nairobi",total:8960,members:32},
-  {name:"Karen C School",total:7120,members:15},
-  {name:"Strathmore Prep",total:5840,members:12},
-];
-const CHALLENGES = [
-  {title:"Plastic Free Week",desc:"Submit 5 kg plastic this week",progress:62,reward:"500 pts",ends:"3 days"},
-  {title:"Aluminium Sprint",desc:"Collect 3 kg aluminium",progress:38,reward:"300 pts",ends:"5 days"},
-  {title:"School Champion",desc:"Be top recycler in your school",progress:80,reward:"1000 pts + Gold Badge",ends:"7 days"},
-];
-const BADGE_COLORS={Gold:"#fef9c3",Silver:"#f1f5f9",Bronze:"#fef3c7"};
-const BADGE_TEXT={Gold:"#713f12",Silver:"#334155",Bronze:"#92400e"};
+const MEDALS = ["🥇", "🥈", "🥉"];
+const BADGE_COLORS = { Gold: "#fef9c3", Silver: "#f1f5f9", Bronze: "#fef3c7" };
+const BADGE_TEXT = { Gold: "#713f12", Silver: "#334155", Bronze: "#92400e" };
+
+function initials(name = "") {
+  return name.split(" ").slice(0, 2).map((word) => word[0]).join("").toUpperCase() || "U";
+}
 
 export default function LeaderboardPage() {
+  const { user } = useAuth();
   const [tab, setTab] = useState("individual");
   const [q, setQ] = useState("");
-  const filtered = ALL_ENTRIES.filter(e =>
-    e.name.toLowerCase().includes(q.toLowerCase()) ||
-    e.school.toLowerCase().includes(q.toLowerCase())
-  );
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    getLeaderboard()
+      .then(({ data }) => {
+        if (!active) return;
+        setLeaderboard(data.data || data || []);
+      })
+      .catch(() => {
+        if (active) setLeaderboard([]);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const individualEntries = useMemo(() => leaderboard.map((entry) => ({
+    id: entry._id,
+    name: entry.user?.name || "Unknown recycler",
+    school: entry.school?.name || "Unassigned",
+    pts: Number(entry.points ?? entry.user?.ecoPoints ?? 0),
+    av: initials(entry.user?.name || "User"),
+  })), [leaderboard]);
+
+  const schoolRanks = useMemo(() => {
+    const groups = new Map();
+
+    individualEntries.forEach((entry) => {
+      const current = groups.get(entry.school) || { name: entry.school, total: 0, members: 0 };
+      current.total += entry.pts;
+      current.members += 1;
+      groups.set(entry.school, current);
+    });
+
+    return Array.from(groups.values()).sort((a, b) => b.total - a.total).slice(0, 8);
+  }, [individualEntries]);
+
+  const filtered = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    return individualEntries.filter((entry) => !query || entry.name.toLowerCase().includes(query) || entry.school.toLowerCase().includes(query));
+  }, [individualEntries, q]);
+
+  const liveHighlights = useMemo(() => {
+    const topRecycler = individualEntries[0];
+    const topSchool = schoolRanks[0];
+    const currentEntry = user?.id ? individualEntries.find((entry) => entry.id === user.id) : null;
+
+    return [
+      { title: "Top recycler", desc: topRecycler ? `${topRecycler.name} leads with ${topRecycler.pts.toLocaleString()} points.` : "Waiting for live rankings.", reward: topRecycler ? `#${1}` : "—", progress: 100 },
+      { title: "Leading school", desc: topSchool ? `${topSchool.name} has ${topSchool.members} active members.` : "No school rankings yet.", reward: topSchool ? `${topSchool.total.toLocaleString()} pts` : "—", progress: topSchool ? 100 : 0 },
+      { title: "Your standing", desc: currentEntry ? `You are ranked among ${individualEntries.length} live participants.` : "Log in to see your rank.", reward: currentEntry ? `${currentEntry.pts.toLocaleString()} pts` : "—", progress: currentEntry ? 100 : 0 },
+    ];
+  }, [individualEntries, schoolRanks, user?.id]);
+
+  if (loading) {
+    return <div className="loader"><span className="spinner" /> Loading leaderboard...</div>;
+  }
 
   return (
     <>
@@ -47,10 +92,10 @@ export default function LeaderboardPage() {
       {/* KPIs */}
       <div className="dash-kpi-row">
         {[
-          {icon:Trophy, bg:"#fef9c3",ic:"#d97706", label:"Your Rank",   v:"#14"},
-          {icon:Users,  bg:"#eff6ff",ic:"#3b82f6", label:"Participants",v:"248"},
-          {icon:School, bg:"#f0fdf4",ic:"var(--g-600)",label:"Schools",v:"47"},
-          {icon:Star,   bg:"#fdf4ff",ic:"#a21caf", label:"Active Challenges",v:"3"},
+          {icon: Trophy, bg: "#fef9c3", ic: "#d97706", label: "Your Rank", v: user?.id ? `#${Math.max(1, individualEntries.findIndex((entry) => entry.id === user.id) + 1)}` : "—" },
+          {icon: Users, bg: "#eff6ff", ic: "#3b82f6", label: "Participants", v: String(individualEntries.length) },
+          {icon: School, bg: "#f0fdf4", ic: "var(--g-600)", label: "Schools", v: String(schoolRanks.length) },
+          {icon: Star, bg: "#fdf4ff", ic: "#a21caf", label: "Live highlights", v: String(liveHighlights.length) },
         ].map(s=>(
           <div key={s.label} className="kpi-card animate-fade-up">
             <div className="kpi-card-header">
@@ -64,22 +109,22 @@ export default function LeaderboardPage() {
       {/* Active challenges */}
       <div className="card">
         <div className="section-header" style={{marginBottom:20}}>
-          <span className="section-title">🔥 Active Challenges</span>
+          <span className="section-title">Live Highlights</span>
         </div>
         <div className="grid-3">
-          {CHALLENGES.map(c=>(
-            <div key={c.title} className="challenge-card">
-              <div style={{fontFamily:"var(--font-heading)",fontWeight:700,fontSize:15,marginBottom:4}}>{c.title}</div>
-              <div style={{fontSize:13,color:"rgba(255,255,255,.65)",marginBottom:12}}>{c.desc}</div>
+          {liveHighlights.map((item) => (
+            <div key={item.title} className="challenge-card">
+              <div style={{fontFamily:"var(--font-heading)",fontWeight:700,fontSize:15,marginBottom:4}}>{item.title}</div>
+              <div style={{fontSize:13,color:"rgba(255,255,255,.65)",marginBottom:12}}>{item.desc}</div>
               <div style={{marginBottom:8}}>
                 <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"rgba(255,255,255,.6)",marginBottom:6}}>
-                  <span>{c.progress}%</span><span>Ends in {c.ends}</span>
+                  <span>{item.progress}%</span><span>Live now</span>
                 </div>
                 <div style={{height:6,background:"rgba(255,255,255,.15)",borderRadius:100,overflow:"hidden"}}>
-                  <div style={{height:"100%",width:`${c.progress}%`,background:"linear-gradient(90deg,var(--g-400),var(--lime))",borderRadius:100,transition:"width 1s ease"}}/>
+                  <div style={{height:"100%",width:`${item.progress}%`,background:"linear-gradient(90deg,var(--g-400),var(--lime))",borderRadius:100,transition:"width 1s ease"}}/>
                 </div>
               </div>
-              <div style={{fontSize:12,color:"rgba(255,255,255,.7)",fontWeight:600}}>🏆 Reward: {c.reward}</div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,.7)",fontWeight:600}}>🏆 Live: {item.reward}</div>
             </div>
           ))}
         </div>
@@ -107,7 +152,7 @@ export default function LeaderboardPage() {
             </div>
             <div className="table-wrap">
               <table className="table">
-                <thead><tr><th>Rank</th><th>Recycler</th><th>School</th><th>Points</th><th>Kg</th><th>Tier</th></tr></thead>
+                <thead><tr><th>Rank</th><th>Recycler</th><th>School</th><th>Points</th><th>Tier</th></tr></thead>
                 <tbody>
                   {filtered.map((e,i)=>(
                     <tr key={e.id}>
@@ -120,7 +165,6 @@ export default function LeaderboardPage() {
                       </td>
                       <td style={{color:"var(--text-muted)",fontSize:13}}>{e.school}</td>
                       <td style={{fontFamily:"var(--font-heading)",fontWeight:700,color:"var(--g-700)"}}>{e.pts.toLocaleString()}</td>
-                      <td style={{color:"var(--text-muted)"}}>{e.kg} kg</td>
                       <td><span style={{background:BADGE_COLORS[e.badge],color:BADGE_TEXT[e.badge],borderRadius:100,padding:"3px 10px",fontSize:12,fontWeight:700}}>{e.badge}</span></td>
                     </tr>
                   ))}
@@ -135,7 +179,7 @@ export default function LeaderboardPage() {
             <table className="table">
               <thead><tr><th>Rank</th><th>School</th><th>Total Points</th><th>Members</th></tr></thead>
               <tbody>
-                {SCHOOL_RANKS.map((s,i)=>(
+                {schoolRanks.map((s,i)=>(
                   <tr key={s.name}>
                     <td style={{fontFamily:"var(--font-heading)",fontWeight:800,fontSize:15}}>{i<3?MEDALS[i]:i+1}</td>
                     <td><div style={{display:"flex",alignItems:"center",gap:10}}><School size={16} style={{color:"var(--g-600)"}}/><span style={{fontWeight:600}}>{s.name}</span></div></td>

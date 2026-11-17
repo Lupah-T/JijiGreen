@@ -1,9 +1,23 @@
 import WasteSubmission from "../models/WasteSubmission.js";
 import User from "../models/User.js";
+import { buildStudentDashboardMetrics } from "../utils/calculations.js";
 
 export const getStudentDashboard = async (req, res) => {
   const submissions = await WasteSubmission.find({ student: req.user._id }).sort({ createdAt: -1 });
-  res.json({ user: req.user, submissions });
+  const user = await User.findById(req.user._id).select("-password");
+  const metrics = buildStudentDashboardMetrics(user.toObject(), submissions);
+
+  res.json({
+    success: true,
+    data: {
+      user: {
+        ...user.toObject(),
+        ecoPoints: metrics.ecoPoints,
+      },
+      submissions,
+      metrics,
+    },
+  });
 };
 
 export const getStudentHistory = async (req, res) => {

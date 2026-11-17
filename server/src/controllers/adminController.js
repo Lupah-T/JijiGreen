@@ -4,6 +4,9 @@ import School from "../models/School.js";
 import Reward from "../models/Reward.js";
 import AuditLog from "../models/AuditLog.js";
 import CollectorApplication from "../models/CollectorApplication.js";
+import CollectionPoint from "../models/CollectionPoint.js";
+import WasteSubmission from "../models/WasteSubmission.js";
+import Voucher from "../models/Voucher.js";
 import { getPlatformAnalytics } from "../services/analyticsEngine.js";
 import { writeAuditLog } from "../services/auditService.js";
 import { sendNotification } from "../services/notificationService.js";
@@ -59,6 +62,101 @@ export const createSchool = async (req, res) => {
 
 export const createReward = async (req, res) => {
   res.status(201).json(await Reward.create(req.body));
+};
+
+const sanitizeCollectionPointPayload = (body) => ({
+  name: body.name,
+  partnerName: body.partnerName,
+  county: body.county,
+  address: body.address,
+  locationNotes: body.locationNotes,
+  coordinates: {
+    lat: Number(body.coordinates?.lat),
+    lng: Number(body.coordinates?.lng),
+  },
+  acceptedWasteTypes: body.acceptedWasteTypes,
+  assignedCollectors: body.assignedCollectors || [],
+  openingHours: body.openingHours,
+  status: body.status,
+});
+
+const validateAssignedCollectors = async (collectorIds = []) => {
+  if (!collectorIds.length) return true;
+  const count = await User.countDocuments({ _id: { $in: collectorIds }, role: "collector", isActive: true });
+  return count === collectorIds.length;
+};
+
+export const listCollectionPoints = async (_req, res) => {
+  const points = await CollectionPoint.find()
+    .populate("assignedCollectors", "name email role phone")
+    .populate("createdBy", "name email role")
+    .sort({ createdAt: -1 });
+
+  res.json({ success: true, data: points });
+};
+
+export const createCollectionPoint = async (req, res) => {
+  const payload = sanitizeCollectionPointPayload(req.body);
+  const collectorsAreValid = await validateAssignedCollectors(payload.assignedCollectors);
+
+  if (!collectorsAreValid) {
+    return res.status(422).json({ message: "Assigned collectors must be active collector users" });
+  }
+
+  const point = await CollectionPoint.create({ ...payload, createdBy: req.user._id });
+
+  await writeAuditLog({
+    action: "collection_point_created",
+    performedBy: req.user._id,
+    metadata: {
+      collectionPointId: point._id,
+      name: point.name,
+      assignedCollectors: point.assignedCollectors,
+    },
+  });
+
+  const populatedPoint = await CollectionPoint.findById(point._id).populate("assignedCollectors", "name email role phone");
+  res.status(201).json({ success: true, message: "Collection point created", data: populatedPoint });
+};
+
+export const updateCollectionPoint = async (req, res) => {
+  const point = await CollectionPoint.findById(req.params.id);
+  if (!point) {
+    return res.status(404).json({ message: "Collection point not found" });
+  }
+
+  const payload = sanitizeCollectionPointPayload(req.body);
+  const collectorsAreValid = await validateAssignedCollectors(payload.assignedCollectors);
+
+  if (!collectorsAreValid) {
+    return res.status(422).json({ message: "Assigned collectors must be active collector users" });
+  }
+
+  const previousCollectors = point.assignedCollectors.map((id) => id.toString());
+  Object.assign(point, payload);
+  await point.save();
+
+  await writeAuditLog({
+    action: "collection_point_updated",
+    performedBy: req.user._id,
+    metadata: {
+      collectionPointId: point._id,
+      name: point.name,
+      previousCollectors,
+      assignedCollectors: point.assignedCollectors,
+    },
+  });
+
+  const populatedPoint = await CollectionPoint.findById(point._id).populate("assignedCollectors", "name email role phone");
+  res.json({ success: true, message: "Collection point updated", data: populatedPoint });
+};
+
+export const listCollectors = async (_req, res) => {
+  const collectors = await User.find({ role: "collector", isActive: true })
+    .select("name email phone role")
+    .sort({ name: 1 });
+
+  res.json({ success: true, data: collectors });
 };
 
 export const listCollectorApplications = async (_req, res) => {
@@ -204,5 +302,53 @@ export const updateUserRole = async (req, res) => {
   } catch (error) {
     // Do not leak internal errors
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getUserDetails = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!mongoose.isValidObjectId(userId)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    const user = await User.findById(userId).populate("school");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Fetch collections where user is the student (or collector)
+    const collections = await WasteSubmission.find({ 
+      $or: [{ student: userId }, { collector: userId }] 
+    }).sort({ createdAt: -1 });
+
+    const totalPointsEarned = collections
+      .filter(c => c.status === "verified")
+      .reduce((sum, c) => sum + (c.pointsAwarded || 0), 0);
+
+    // Fetch rewards/vouchers redeemed by the user
+    const vouchers = await Voucher.find({ user: userId })
+      .populate("reward")
+      .sort({ createdAt: -1 });
+
+    const totalPointsRedeemed = vouchers.reduce((sum, v) => {
+      // Grand (milestone) awards are free - they cost the user no points
+      return sum + (v.reward?.kind === "milestone" ? 0 : v.reward?.pointsCost || 0);
+    }, 0);
+
+    res.json({
+      success: true,
+      data: {
+        profile: user,
+        collections,
+        vouchers,
+        stats: {
+          totalPointsEarned,
+          totalPointsRedeemed,
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error fetching user details" });
   }
 };

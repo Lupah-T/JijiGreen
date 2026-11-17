@@ -624,6 +624,46 @@ Target:
 
    # In the client folder
    pnpm dev
-# 🌱 JijiGreen
 
+---
+
+### Local run
+
+1. Start the Python AI service from the JijiAI repository:
+   cd /home/mk/Desktop/jijigreen-ai
+   python -m uvicorn api.brand_api:app --host 127.0.0.1 --port 8000
+
+2. Start MongoDB and ensure the connection in `server/.env` is reachable.
+
+3. Start the JijiGreen server:
+   cd /home/mk/Desktop/jijiGreen/JijiGreen/server
+   npm install
+   npm run dev
+
+4. Start the JijiGreen client:
+   cd /home/mk/Desktop/jijiGreen/JijiGreen/client
+   npm install
+   npm run dev
+
+5. Open the app at `http://localhost:5173` and the backend at `http://localhost:5000/api/health`.
+
+The Python AI service is advisory-only. JijiGreen remains the authoritative app for authentication, collection submissions, verification, and rewards.
+
+---
 ### “Community-Powered Environmental Action”
+
+---
+
+# 🎁 Age-Based Rewards (Junior vs Adult)
+
+When registering, every user enters their **age**:
+
+| Group | Age | Rewards | Unlocks at |
+|-------|-----|---------|-----------|
+| **Junior Recycler** | under 16 | Toys, storybooks, puzzles, games, stationery, sports gear | **60 points** |
+| **Adult Recycler** | 16 and above | Airtime, data bundles, shopping vouchers, eco rewards | per reward (100+ pts) |
+
+## 🏆 Grand Award - 500 total points
+Once a user has **earned 500 points in total** (spending points on rewards does *not* reduce this), they are automatically awarded an **Eco Champion** pack: a **watch, a bag and a certificate** (printable from the Rewards page). Applies to both children and adults.
+
+Rules live in `server/src/config/rewardConfig.js` (age limit, 60-point child minimum, 500-point milestone and the default reward catalogue, which is seeded automatically on first start).
