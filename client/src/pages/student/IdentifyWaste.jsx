@@ -302,7 +302,7 @@ const DIY_FALLBACK = {
 };
 
 const normalizeMaterial = (value) => {
-  const material = String(value || "").trim().toLowerCase();
+  const material = String(value || "").trim();
   if (!material) return "";
   return MATERIALS.includes(material) ? material : "";
 };
@@ -323,8 +323,7 @@ const collectionPinIcon = L.divIcon({
 
 const normalizeDIYIdea = (idea = {}) => {
   const makeList = (value) => {
-    if (Array.isArray(value)) return value.filter(Boolean);
-    if (!value) return [];
+    if (Array.isArray(value)) return value.map(String).map((item) => item.trim()).filter(Boolean);
     if (typeof value === "string") {
       return value
         .split(/\n|\r|;|\d+\.\s*/)
@@ -334,6 +333,25 @@ const normalizeDIYIdea = (idea = {}) => {
     }
     return [String(value)];
   };
+
+  const tutorialUrl =
+    idea.video?.url ||
+    idea.tutorial_url ||
+    idea.url ||
+    idea.link ||
+    idea.video_url ||
+    idea.tutorialUrl ||
+    null;
+
+  const tutorialSource =
+    idea.video?.channel ||
+    idea.tutorial_source ||
+    idea.source ||
+    (tutorialUrl?.includes("youtube") ? "YouTube" : "Web");
+
+  const tutorialPlatform =
+    idea.video?.platform ||
+    (tutorialUrl?.includes("youtube") || tutorialUrl?.includes("youtu.be") ? "YouTube" : "Web");
 
   return {
     ...idea,
@@ -346,7 +364,14 @@ const normalizeDIYIdea = (idea = {}) => {
     difficulty: idea.difficulty || "Easy",
     estimated_time: idea.estimated_time || idea.estimated_time_minutes || "20-30 minutes",
     verification_status: idea.verification_status || "reviewed",
-    video: idea.video || null,
+    video: tutorialUrl
+      ? {
+          title: idea.video?.title || idea.title || "Watch tutorial",
+          url: tutorialUrl,
+          platform: tutorialPlatform,
+          channel: tutorialSource,
+        }
+      : (idea.video || null),
   };
 };
 
@@ -362,13 +387,35 @@ export default function IdentifyWaste() {
   const [recommendations, setRecommendations] = useState([]);
   const [diy, setDiy] = useState([]);
   const [selectedIdea, setSelectedIdea] = useState(null);
-  const [gpsLocation, setGpsLocation] = useState({ latitude: -1.2864, longitude: 36.8172 });
-  const [manualLocation, setManualLocation] = useState("");
+  const [gpsLocation, setGpsLocation] = useState(null);
   const [locationMode, setLocationMode] = useState("gps");
   const [materialFilter, setMaterialFilter] = useState("all");
 
-  useEffect(() => () => {
-    if (preview) URL.revokeObjectURL(preview);
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGpsLocation(null);
+      setLocationMode("manual");
+      return undefined;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setGpsLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        setLocationMode("gps");
+      },
+      () => {
+        setGpsLocation(null);
+        setLocationMode("manual");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
   }, [preview]);
 
   const materialName = useMemo(() => {
@@ -403,32 +450,6 @@ export default function IdentifyWaste() {
     setPreview(URL.createObjectURL(selectedFile));
   };
 
-  const resolveManualLocation = async () => {
-    if (!manualLocation.trim()) {
-      setError("Enter a city, neighbourhood or address to use the manual fallback.");
-      return;
-    }
-
-    setError("");
-    try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(manualLocation)}`);
-      const payload = await response.json();
-      if (!payload?.[0]) {
-        throw new Error("No matching location was found.");
-      }
-
-      const selected = payload[0];
-      const nextLocation = {
-        latitude: Number(selected.lat),
-        longitude: Number(selected.lon),
-      };
-      setGpsLocation(nextLocation);
-      setLocationMode("manual");
-    } catch (err) {
-      setError(err.message || "The requested location could not be resolved.");
-    }
-  };
-
   const useLocation = () => {
     if (!navigator.geolocation) {
       setError("Geolocation is not supported in this browser.");
@@ -445,7 +466,7 @@ export default function IdentifyWaste() {
         setLocationMode("gps");
       },
       () => {
-        setError("Location permission was not granted. Please use the manual location fallback.");
+        setError("Location permission was not granted. Please allow browser location access to continue.");
         setLocationMode("manual");
       },
       { enableHighAccuracy: true, timeout: 10000 }
@@ -455,6 +476,11 @@ export default function IdentifyWaste() {
   const handleAnalyze = async () => {
     if (!file) {
       setError("Upload a waste image before requesting AI analysis.");
+      return;
+    }
+
+    if (!gpsLocation) {
+      setError("Enable browser location access to use live collection guidance.");
       return;
     }
 
@@ -486,8 +512,8 @@ export default function IdentifyWaste() {
             material,
             condition: "good",
             quantityKg: 1,
-            latitude: gpsLocation.latitude || DEFAULT_CENTER.lat,
-            longitude: gpsLocation.longitude || DEFAULT_CENTER.lng,
+            latitude: gpsLocation.latitude,
+            longitude: gpsLocation.longitude,
           }),
           getDIYRecommendations({ material, audience: "user" }),
         ]);
@@ -581,24 +607,12 @@ export default function IdentifyWaste() {
           <div style={{ marginTop: 16, borderTop: "1px solid var(--border)", paddingTop: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <MapPin size={15} style={{ color: "var(--g-600)" }} />
-              <strong>Location</strong>
+              <strong>Live location</strong>
             </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <input
-                className="input"
-                value={manualLocation}
-                onChange={(e) => setManualLocation(e.target.value)}
-                placeholder="Search a location or neighbourhood"
-                style={{ flex: 1, minWidth: 180 }}
-              />
-              <button className="btn btn-outline" type="button" onClick={resolveManualLocation}>
-                <Search size={15} /> Use place
-              </button>
-            </div>
-            <div style={{ color: "var(--text-muted)", fontSize: 12, marginTop: 8 }}>
-              {locationMode === "gps"
-                ? `Using GPS: ${gpsLocation.latitude.toFixed(4)}, ${gpsLocation.longitude.toFixed(4)}`
-                : `Location fallback: ${manualLocation || "manual input"}`}
+            <div style={{ color: "var(--text-muted)", fontSize: 12 }}>
+              {gpsLocation
+                ? `Using browser GPS: ${gpsLocation.latitude.toFixed(4)}, ${gpsLocation.longitude.toFixed(4)}`
+                : "Browser geolocation is required for live collection advice."}
             </div>
           </div>
         </div>
@@ -651,7 +665,10 @@ export default function IdentifyWaste() {
 
             <div className="map-shell">
               <MapContainer
-                center={[gpsLocation.latitude || DEFAULT_CENTER.lat, gpsLocation.longitude || DEFAULT_CENTER.lng]}
+                center={[
+                  gpsLocation?.latitude ?? DEFAULT_CENTER.lat,
+                  gpsLocation?.longitude ?? DEFAULT_CENTER.lng,
+                ]}
                 zoom={12}
                 scrollWheelZoom
                 style={{ height: 320, width: "100%", borderRadius: 14 }}
@@ -660,29 +677,21 @@ export default function IdentifyWaste() {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
-                <Marker position={[gpsLocation.latitude || DEFAULT_CENTER.lat, gpsLocation.longitude || DEFAULT_CENTER.lng]} icon={userPinIcon}>
-                  <Popup>
-                    Your location
-                  </Popup>
+                <Marker
+                  position={[
+                    gpsLocation?.latitude ?? DEFAULT_CENTER.lat,
+                    gpsLocation?.longitude ?? DEFAULT_CENTER.lng,
+                  ]}
+                  icon={userPinIcon}
+                >
+                  <Popup>Your location</Popup>
                 </Marker>
-                {recommendations.filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude)).map((point, idx) => (
-                  <Marker
-                    key={`${point.facility_id || point.name || "facility"}-${idx}`}
-                    position={[Number(point.latitude), Number(point.longitude)]}
-                    icon={collectionPinIcon}
-                  >
-                    <Popup>
-                      <div style={{ minWidth: 180 }}>
-                        <strong>{point.name}</strong><br />
-                        <span>{point.location || "Location not provided"}</span><br />
-                        <small>{point.distance_km ? `${Number(point.distance_km).toFixed(1)} km away` : "Distance unavailable"}</small><br />
-                        <small>{point.accepted_materials?.join(", ") || "Material details unavailable"}</small>
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
-                {gpsLocation.latitude && gpsLocation.longitude && (
-                  <Circle center={[gpsLocation.latitude, gpsLocation.longitude]} radius={1200} pathOptions={{ color: "#1a8f5c", fillColor: "#8cd2b5", fillOpacity: 0.16 }} />
+                {gpsLocation && (
+                  <Circle
+                    center={[gpsLocation.latitude, gpsLocation.longitude]}
+                    radius={1200}
+                    pathOptions={{ color: "#1a8f5c", fillColor: "#8cd2b5", fillOpacity: 0.16 }}
+                  />
                 )}
               </MapContainer>
             </div>

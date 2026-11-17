@@ -1,4 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
+import { MapContainer, TileLayer, Marker, Popup, Circle } from "react-leaflet";
+import L from "leaflet";
 import { useAuth } from "../../hooks/useAuth.js";
 import { getStudentDashboard } from "../../api/studentApi.js";
 import { getLeaderboard } from "../../api/rewardsApi.js";
@@ -275,8 +278,9 @@ export default function StudentDashboard(){
     Promise.all([getStudentDashboard(), getLeaderboard(), getCollectionPoints()])
       .then(([dashboardRes, leaderboardRes, pointsRes])=>{
         if(!active)return;
-        setDash(dashboardRes.data.data || dashboardRes.data || null);
-        setLeaderboard(leaderboardRes.data.data || leaderboardRes.data || []);
+        const dashboardData = dashboardRes.data.data || dashboardRes.data || null;
+        setDash(dashboardData);
+        setLeaderboard((leaderboardRes.data.data || leaderboardRes.data || []).slice(0, 5));
         setPoints(pointsRes.data.data || pointsRes.data || []);
       })
       .catch(()=>{
@@ -301,6 +305,8 @@ export default function StudentDashboard(){
   const totalKg=submissions.reduce((sum,submission)=>sum+Number(submission.weightKg || 0),0);
   const verifiedPoints=verifiedSubmissions.reduce((sum,submission)=>sum+Number(submission.pointsAwarded || 0),0);
   const treeImpact=Math.floor(totalKg / 25);
+  const lifetime = Number(dash?.metrics?.totalPointsAwarded ?? verifiedPoints ?? pts ?? 0);
+  const isChild = Number(user?.age ?? 0) < 16;
 
   if(loading){
     return <div className="loader"><span className="spinner" /> Loading dashboard...</div>;
@@ -353,11 +359,11 @@ export default function StudentDashboard(){
             {lifetime>=500
               ? "You earned the watch, bag and certificate. Keep recycling to climb the leaderboard!"
               : isChild&&pts<60
-                ? `Collect ${60-pts} more point${60-pts===1?"":"s"} to unlock toys and storybooks.`
-                : `${500-lifetime} more points to win the Eco Champion watch, bag and certificate.`}
+                ? `Collect ${Math.max(0, 60-pts)} more point${Math.max(0, 60-pts)===1?"":"s"} to unlock toys and storybooks.`
+                : `${Math.max(0, 500-lifetime)} more points to win the Eco Champion watch, bag and certificate.`}
           </p>
           <div className="progress-track" style={{marginTop:10}}>
-            <div className="progress-fill" style={{width:`${Math.min((lifetime>=500?500:isChild&&pts<60?pts/60*500:lifetime)/500*100,100)}%`}}/>
+            <div className="progress-fill" style={{width:`${Math.min((lifetime>=500?500:isChild&&pts<60?Math.min(pts,60)/60*500:lifetime)/500*100,100)}%`}}/>
           </div>
           <div style={{fontSize:11,color:"var(--text-soft)",marginTop:4}}>{lifetime.toLocaleString()} / 500 total points</div>
         </div>
@@ -411,6 +417,35 @@ export default function StudentDashboard(){
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Live location map */}
+      <div className="card">
+        <div className="section-header">
+          <span className="section-title">Live collection map</span>
+          <span className="badge badge-green">Nearby</span>
+        </div>
+        <CompactLocationMap points={points} />
+      </div>
+
+      <div className="grid-2" style={{ marginTop: 18 }}>
+        <div className="card">
+          <div className="section-header">
+            <span className="section-title">Recent Activity</span>
+          </div>
+          {ACTIVITY.map(a=>(
+            <div key={a.id} className="activity-item">
+              <div className="activity-dot"/>
+              <div style={{flex:1}}>
+                <div className="activity-text">{a.text}</div>
+                <div className="activity-meta">{a.time}</div>
+              </div>
+              <span style={{fontFamily:"var(--font-heading)",fontWeight:700,fontSize:13,color:a.pts.startsWith("+")?"var(--g-700)":"var(--danger)",flexShrink:0}}>
+                {a.pts} pts
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -471,5 +506,102 @@ export default function StudentDashboard(){
         ))}
       </div>
     </>
+  );
+}
+
+/* ── Compact live location map ── */
+const DEFAULT_MAP_CENTER = { lat: -1.2864, lng: 36.8172 };
+
+const userPinIcon = L.divIcon({
+  className: "compact-map-pin",
+  html: '<span class="compact-user-pin"></span>',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+  popupAnchor: [0, -8],
+});
+
+const facilityPinIcon = L.divIcon({
+  className: "compact-map-pin",
+  html: '<span class="compact-facility-pin"></span>',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+  popupAnchor: [0, -8],
+});
+
+function CompactLocationMap({ points = [] }) {
+  const [coords, setCoords] = useState(DEFAULT_MAP_CENTER);
+  const [ready, setReady] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!navigator.geolocation) {
+      setReady(true);
+      return () => {
+        active = false;
+      };
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      ({ coords: position }) => {
+        if (!active) return;
+        setCoords({ lat: position.latitude, lng: position.longitude });
+        setReady(true);
+      },
+      () => {
+        if (!active) return;
+        setReady(true);
+      },
+      { enableHighAccuracy: false, timeout: 3000, maximumAge: 120000 }
+    );
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const mapPoints = (points || [])
+    .filter((point) => point?.coordinates && Number.isFinite(point.coordinates.lat) && Number.isFinite(point.coordinates.lng))
+    .slice(0, 4)
+    .map((point) => ({
+      name: point.name,
+      lat: Number(point.coordinates.lat),
+      lng: Number(point.coordinates.lng),
+      distanceKm: point.distanceKm || "Nearby",
+    }));
+
+  return (
+    <div className="compact-map-card">
+      <div className="compact-map-shell">
+        <MapContainer
+          center={[coords.lat, coords.lng]}
+          zoom={12}
+          scrollWheelZoom={false}
+          dragging={false}
+          zoomControl={false}
+          attributionControl={false}
+          className="compact-map"
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution="&copy; OpenStreetMap contributors"
+          />
+          <Marker position={[coords.lat, coords.lng]} icon={userPinIcon}>
+            <Popup>Your location</Popup>
+          </Marker>
+          {mapPoints.map((point, index) => (
+            <Marker key={`${point.name}-${index}`} icon={facilityPinIcon} position={[point.lat, point.lng]}>
+              <Popup>
+                <div style={{ minWidth: 150 }}>
+                  <strong>{point.name}</strong><br />
+                  <span>{point.distanceKm}</span>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+          <Circle center={[coords.lat, coords.lng]} radius={1500} pathOptions={{ color: "#16a34a", fillColor: "#86efac", fillOpacity: 0.18 }} />
+        </MapContainer>
+      </div>
+    </div>
   );
 }
