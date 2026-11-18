@@ -1,8 +1,16 @@
-import { useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useLocation, useParams } from "react-router-dom";
 import { Leaf, Eye, EyeOff, ArrowRight, Recycle, Star, Shield } from "lucide-react";
 import { authService } from "../../services/authService.js";
 import { useAuth } from "../../hooks/useAuth.js";
+
+const DEMO_ACCOUNTS = {
+  student: { email: "student@jijigreen.test", password: "Student123" },
+  collector: { email: "collector@jijigreen.test", password: "Collector123" },
+  "school-admin": { email: "schooladmin@jijigreen.test", password: "SchoolAdmin123" },
+  "operations-admin": { email: "operations@jijigreen.test", password: "Operations123" },
+  "super-admin": { email: "admin@jijigreen.test", password: "SuperAdmin123" },
+};
 
 const dashboardForRole = (role) => {
   if (role === "collector") return "/collector/dashboard";
@@ -13,6 +21,8 @@ const dashboardForRole = (role) => {
 export default function Login() {
   const navigate = useNavigate();
   const { setUser } = useAuth();
+  const { role: roleParam } = useParams();
+  const autoLoginStarted = useRef(false);
   const [form, setForm]   = useState({ email: "", password: "" });
   const [show, setShow]   = useState(false);
   const [err, setErr]     = useState("");
@@ -36,6 +46,31 @@ export default function Login() {
       setErr(ex.message || "Invalid email or password.");
     } finally { setBusy(false); }
   };
+
+  useEffect(() => {
+    if (!roleParam || autoLoginStarted.current) return;
+    const demo = DEMO_ACCOUNTS[roleParam];
+    if (!demo) {
+      setErr("Unknown demo account role.");
+      return;
+    }
+
+    autoLoginStarted.current = true;
+    setForm(demo);
+    setErr("");
+    setBusy(true);
+
+    authService.login(demo)
+      .then((r) => {
+        if (r.success && r.user) {
+          setUser(r.user);
+          localStorage.setItem("role", r.user.role);
+          navigate(dashboardForRole(r.user.role));
+        }
+      })
+      .catch((ex) => setErr(ex.message || "Demo login failed. Run pnpm seed:demo in the server directory."))
+      .finally(() => setBusy(false));
+  }, [roleParam, navigate, setUser]);
 
   return (
     <div className="auth-shell">

@@ -71,6 +71,8 @@ export default function CollectorDashboard() {
 
   useEffect(() => {
     refresh();
+    const interval = window.setInterval(refresh, 10000);
+    return () => window.clearInterval(interval);
   }, [refresh]);
 
   const today = new Date();
@@ -156,7 +158,10 @@ export default function CollectorDashboard() {
       </div>
 
       <div className="grid-2">
-        <WasteForm onSubmitted={refresh} />
+        <WasteForm
+          collectionPoints={collectionPoints.filter((point) => point.status === "active")}
+          onSubmitted={refresh}
+        />
 
         <div className="card">
           <div className="section-header">

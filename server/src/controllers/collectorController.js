@@ -167,13 +167,9 @@ export const verifyWasteSubmission = async (req, res) => {
 
     if (requestedStatus === "verified") {
       try {
-        const updatedStudent = await User.findByIdAndUpdate(
-          submission.student,
-          { $inc: { ecoPoints: pointsAwarded } },
-          { new: true }
-        );
+        const award = await awardPoints(submission.student, pointsAwarded);
 
-        if (!updatedStudent) {
+        if (!award.user) {
           await WasteSubmission.updateOne(
             {
               _id: submission._id,

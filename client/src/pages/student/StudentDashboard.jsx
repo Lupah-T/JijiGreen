@@ -65,12 +65,21 @@ function buildWeeklySeries(submissions = []){
 }
 
 function buildActivity(submissions = []){
-  return submissions.slice(0, 4).map((submission) => ({
-    id: submission._id,
-    text: `${submission.status === "verified" ? "Verified" : "Submitted"} ${Number(submission.weightKg || 0).toFixed(1)} kg ${submission.wasteType || "waste"}`,
-    time: new Date(submission.createdAt).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" }),
-    pts: submission.status === "verified" ? `+${Number(submission.pointsAwarded || 0)}` : "0",
-  }));
+  return submissions.slice(0, 4).map((submission) => {
+    const statusText = submission.status === "verified"
+      ? "Verified"
+      : submission.status === "rejected"
+        ? "Rejected"
+        : "Pending verification —";
+
+    return {
+      id: submission._id,
+      text: `${statusText} ${Number(submission.weightKg || 0).toFixed(1)} kg ${submission.wasteType || "waste"}`,
+      time: new Date(submission.createdAt).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" }),
+      pts: submission.status === "verified" ? `+${Number(submission.pointsAwarded || 0)}` : "0",
+      pending: submission.status === "pending",
+    };
+  });
 }
 
 function buildNearbyPoints(points = []){
@@ -275,25 +284,25 @@ export default function StudentDashboard(){
   useEffect(()=>{
     let active=true;
 
-    Promise.all([getStudentDashboard(), getLeaderboard(), getCollectionPoints()])
-      .then(([dashboardRes, leaderboardRes, pointsRes])=>{
-        if(!active)return;
-        const dashboardData = dashboardRes.data.data || dashboardRes.data || null;
-        setDash(dashboardData);
-        setLeaderboard((leaderboardRes.data.data || leaderboardRes.data || []).slice(0, 5));
-        setPoints(pointsRes.data.data || pointsRes.data || []);
-      })
-      .catch(()=>{
-        if(!active)return;
-        setDash(null);
-        setLeaderboard([]);
-        setPoints([]);
-      })
-      .finally(()=>{
-        if(active)setLoading(false);
-      });
+    const refresh = () => {
+      Promise.all([getStudentDashboard(), getLeaderboard(), getCollectionPoints()])
+        .then(([dashboardRes, leaderboardRes, pointsRes])=>{
+          if(!active)return;
+          const dashboardData = dashboardRes.data.data || dashboardRes.data || null;
+          setDash(dashboardData);
+          setLeaderboard((leaderboardRes.data.data || leaderboardRes.data || []).slice(0, 5));
+          setPoints(pointsRes.data.data || pointsRes.data || []);
+        })
+        .catch(()=>{
+          if(!active)return;
+          setDash(null);
+        })
+        .finally(()=>{ if(active)setLoading(false); });
+    };
 
-    return ()=>{active=false;};
+    refresh();
+    const interval = window.setInterval(refresh, 10000);
+    return ()=>{active=false; window.clearInterval(interval);};
   },[]);
 
   const submissions=dash?.submissions || [];
@@ -301,7 +310,8 @@ export default function StudentDashboard(){
   const ACTIVITY=useMemo(()=>buildActivity(submissions),[submissions]);
   const NEARBY=useMemo(()=>buildNearbyPoints(points),[points]);
   const LEADERBOARD=useMemo(()=>buildLeaderboardRows(leaderboard),[leaderboard]);
-  const verifiedSubmissions=submissions.filter((submission)=>submission.status==="verified");
+  const verifiedSubmissions=submissions.filter((submission)=>submission.status=== "verified");
+  const pendingSubmissions=submissions.filter((submission)=>submission.status=== "pending");
   const totalKg=submissions.reduce((sum,submission)=>sum+Number(submission.weightKg || 0),0);
   const verifiedPoints=verifiedSubmissions.reduce((sum,submission)=>sum+Number(submission.pointsAwarded || 0),0);
   const treeImpact=Math.floor(totalKg / 25);
@@ -328,6 +338,30 @@ export default function StudentDashboard(){
         </button>
       </div>
 
+      {/* Pending verification alert */}
+      {pendingSubmissions.length > 0 && (
+        <div className="alert" style={{
+          background: "#fffbeb",
+          border: "1px solid #fcd34d",
+          color: "#92400e",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "12px 16px",
+          borderRadius: "var(--r-md)",
+          marginTop: 12,
+          marginBottom: 24,
+        }}>
+          <AlertCircle size={18} />
+          <div>
+            <strong>Pending verification</strong>
+            <div style={{ fontSize: 13, marginTop: 2 }}>
+              {pendingSubmissions.length} submission{pendingSubmissions.length === 1 ? "" : "s"} waiting for a collector to verify. Eco-points are awarded only after verification.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* KPI row */}
       <div className="dash-kpi-row">
         {[
@@ -335,6 +369,7 @@ export default function StudentDashboard(){
           {icon:TrendingUp,bg:"#eff6ff",ic:"#3b82f6",       label:"Kg Collected",       v:`${totalKg.toFixed(1)} kg`, trend:"Live data",       up:true},
           {icon:Leaf,      bg:"#f7fee7",ic:"var(--lime-dk)", label:"Trees Sponsored",   v:String(treeImpact),      trend:"Calculated from waste",   up:true},
           {icon:Award,     bg:"#fef9c3",ic:"#d97706",        label:"Verified Points",   v:String(verifiedPoints),      trend:"From verified submissions", up:true},
+          {icon:AlertCircle,bg:"#fffbeb",ic:"#d97706", label:"Pending Verification", v:String(pendingSubmissions.length), trend:pendingSubmissions.length ? "Waiting for collector" : "No submissions pending", up:false},
         ].map(s=>(
           <div key={s.label} className="kpi-card animate-fade-up">
             <div className="kpi-card-header">
@@ -441,7 +476,7 @@ export default function StudentDashboard(){
                 <div className="activity-text">{a.text}</div>
                 <div className="activity-meta">{a.time}</div>
               </div>
-              <span style={{fontFamily:"var(--font-heading)",fontWeight:700,fontSize:13,color:a.pts.startsWith("+")?"var(--g-700)":"var(--danger)",flexShrink:0}}>
+              <span style={{fontFamily:"var(--font-heading)",fontWeight:700,fontSize:13,color:a.pending?"#d97706":a.pts.startsWith("+")?"var(--g-700)":"var(--danger)",flexShrink:0}}>
                 {a.pts} pts
               </span>
             </div>
@@ -479,7 +514,7 @@ export default function StudentDashboard(){
                 <div className="activity-text">{a.text}</div>
                 <div className="activity-meta">{a.time}</div>
               </div>
-              <span style={{fontFamily:"var(--font-heading)",fontWeight:700,fontSize:13,color:a.pts.startsWith("+")?"var(--g-700)":"var(--danger)",flexShrink:0}}>
+              <span style={{fontFamily:"var(--font-heading)",fontWeight:700,fontSize:13,color:a.pending?"#d97706":a.pts.startsWith("+")?"var(--g-700)":"var(--danger)",flexShrink:0}}>
                 {a.pts} pts
               </span>
             </div>

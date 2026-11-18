@@ -31,7 +31,7 @@ const normalizeMaterial = (value) => {
     : "";
 };
 
-export default function WasteForm({ onSubmitted }) {
+export default function WasteForm({ collectionPoints = [], onSubmitted }) {
   const [student, setStudent] = useState("");
   const [weightKg, setWeightKg] = useState("");
   const [material, setMaterial] = useState("plastic");
@@ -44,6 +44,7 @@ export default function WasteForm({ onSubmitted }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [collectionPoint, setCollectionPoint] = useState("");
 
   const materialResult = analysis?.material;
   const brandResult = analysis?.brand_recognition?.result;
@@ -123,7 +124,12 @@ export default function WasteForm({ onSubmitted }) {
     setSuccess("");
 
     if (!student.trim() || !weightKg || Number(weightKg) < 0.1) {
-      setError("Enter a valid student ID and a weight of at least 0.1 kg.");
+      setError("Enter a valid student ID, a collection point, and a weight of at least 0.1 kg.");
+      return;
+    }
+
+    if (!collectionPoint) {
+      setError("Select the collection point for this submission.");
       return;
     }
 
@@ -160,6 +166,8 @@ export default function WasteForm({ onSubmitted }) {
         );
       }
 
+      payload.append("collectionPoint", collectionPoint);
+
       const response = await submitWaste(payload);
 
       setSuccess(
@@ -175,6 +183,7 @@ export default function WasteForm({ onSubmitted }) {
       setAnalysis(null);
       setPreview("");
       setIsBottle(false);
+      setCollectionPoint("");
 
       onSubmitted?.(response.data?.data);
     } catch (err) {
@@ -425,6 +434,26 @@ export default function WasteForm({ onSubmitted }) {
           <small style={{ color: "var(--text-muted)" }}>
             A predicted brand is not automatically saved as a confirmed brand.
           </small>
+        </div>
+
+        <div className="field">
+          <label className="field-label" htmlFor="collector-location">
+            Collection point
+          </label>
+          <select
+            id="collector-location"
+            className="input"
+            value={collectionPoint}
+            onChange={(event) => setCollectionPoint(event.target.value)}
+            required
+          >
+            <option value="">Select a collection point</option>
+            {collectionPoints.map((point) => (
+              <option key={point._id} value={point._id}>
+                {point.name}{point.county ? ` — ${point.county}` : ""}
+              </option>
+            ))}
+          </select>
         </div>
 
         {error && (

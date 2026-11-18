@@ -47,23 +47,23 @@ export default function Analytics() {
   useEffect(() => {
     let active = true;
 
-    getWasteIntelligence()
-      .then((response) => {
-        if (active) setData(response.data?.data ?? null);
-      })
-      .catch((err) => {
-        if (active) {
-          setError(
-            err.response?.data?.message ||
-            "Unable to load waste intelligence right now."
-          );
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+    const refresh = () => {
+      getWasteIntelligence()
+        .then((response) => {
+          if (active) {
+            setData(response.data?.data ?? null);
+            setError("");
+          }
+        })
+        .catch((err) => {
+          if (active) setError(err.response?.data?.message || "Unable to load waste intelligence right now.");
+        })
+        .finally(() => { if (active) setLoading(false); });
+    };
 
-    return () => { active = false; };
+    refresh();
+    const interval = window.setInterval(refresh, 30000);
+    return () => { active = false; window.clearInterval(interval); };
   }, []);
 
   if (loading) {

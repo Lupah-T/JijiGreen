@@ -14,8 +14,15 @@ import { sendNotification } from "../services/notificationService.js";
 const ADMIN_CREATABLE_ROLES = ["collector", "school_admin", "operations_admin"];
 const ALLOWED_ROLE_UPDATES = ["collector", "school_admin", "operations_admin", "student", "super_admin"];
 
-export const getAdminDashboard = async (_req, res) => {
-  res.json(await getPlatformAnalytics());
+export const getAdminDashboard = async (req, res) => {
+  try {
+    res.json(await getPlatformAnalytics(req.user));
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Unable to load admin dashboard",
+    });
+  }
 };
 
 export const listUsers = async (_req, res) => {
@@ -52,7 +59,12 @@ export const createAdminUser = async (req, res) => {
   });
 };
 
-export const listSchools = async (_req, res) => {
+export const listSchools = async (req, res) => {
+  if (req.user.role === "school_admin") {
+    if (!req.user.school) return res.status(403).json({ message: "Your admin account is not assigned to a school" });
+    const school = await School.findById(req.user.school);
+    return res.json(school ? [school] : []);
+  }
   res.json(await School.find().sort({ name: 1 }));
 };
 

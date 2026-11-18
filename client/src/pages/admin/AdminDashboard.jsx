@@ -14,21 +14,19 @@ export default function AdminDashboard(){
   useEffect(() => {
     let active = true;
 
-    getAdminDashboard()
-      .then(({ data }) => {
-        if (!active) return;
-        setAnalytics(data.data || data || null);
-      })
-      .catch(() => {
-        if (active) setAnalytics(null);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
+    const refresh = () => {
+      getAdminDashboard()
+        .then(({ data }) => {
+          if (!active) return;
+          setAnalytics(data.data || data || null);
+        })
+        .catch(() => { if (active) setAnalytics(null); })
+        .finally(() => { if (active) setLoading(false); });
     };
+
+    refresh();
+    const interval = window.setInterval(refresh, 30000);
+    return () => { active = false; window.clearInterval(interval); };
   }, []);
 
   const trendData = analytics?.monthlyTrend || [];
