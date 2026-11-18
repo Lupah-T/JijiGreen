@@ -1,7 +1,9 @@
+// Student rewards marketplace
+
 import { useEffect, useMemo, useState } from "react";
-import { Lock, RefreshCw, Star, Zap } from "lucide-react";
+import { Lock, RefreshCw, Star, Zap, Baby, UserRound, Ticket, Gift } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
-import { getRewards, redeemReward } from "../../api/rewardsApi.js";
+import { getRewards, getMyRewards, redeemReward } from "../../api/rewardsApi.js";
 
 const CATEGORY_STYLE = {
   Airtime: { bg: "#dbeafe", color: "#1e3a8a" },
@@ -42,21 +44,46 @@ export default function Rewards() {
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
   const [redeemingId, setRedeemingId] = useState(null);
+  const [otherVouchers, setOtherVouchers] = useState([]);
+  const isChild = Number(user?.age || 0) > 0 && Number(user.age) < 16;
 
   useEffect(() => {
     let active = true;
 
-    getRewards()
-      .then(({ data }) => {
+    async function loadCatalogue() {
+      try {
+        const response = await getRewards();
         if (!active) return;
-        setRewards(data.data || data || []);
-      })
-      .catch(() => {
+        const payload = response.data;
+        setRewards(payload.data || payload || []);
+      } catch {
         if (active) setRewards([]);
-      })
-      .finally(() => {
+      } finally {
         if (active) setLoading(false);
-      });
+      }
+    }
+
+    loadCatalogue();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadWallet() {
+      try {
+        const response = await getMyRewards();
+        if (!active) return;
+        setOtherVouchers(response.data?.data?.vouchers || []);
+      } catch {
+        if (active) setOtherVouchers([]);
+      }
+    }
+
+    loadWallet();
 
     return () => {
       active = false;
@@ -98,8 +125,6 @@ export default function Rewards() {
 
   return (
     <>
-      {showCert && <Certificate name={user?.name} onClose={() => setShowCert(false)} />}
-
       <div className="dashboard-header">
         <div>
           <h1 className="page-title">Rewards Marketplace</h1>

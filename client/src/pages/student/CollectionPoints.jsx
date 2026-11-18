@@ -27,7 +27,25 @@ export default function StudentCollectionPoints() {
   };
 
   useEffect(() => {
-    load();
+    if (!navigator.geolocation) {
+      setMessage("Geolocation is not available in this browser.");
+      load(NAIROBI);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
+        setLocation(coords);
+        load(coords);
+        setMessage("Showing collection points nearest to your real browser location.");
+      },
+      () => {
+        setMessage("Location permission was not granted. Showing Nairobi collection points.");
+        load(NAIROBI);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
   }, []);
 
   const useCurrentLocation = () => {
@@ -41,9 +59,10 @@ export default function StudentCollectionPoints() {
         const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
         setLocation(coords);
         load(coords);
-        setMessage("Showing collection points nearest to your current location.");
+        setMessage("Showing collection points nearest to your real browser location.");
       },
-      () => setMessage("Could not access location. Showing Nairobi collection points.")
+      () => setMessage("Could not access location. Showing Nairobi collection points."),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
     );
   };
 
@@ -66,6 +85,13 @@ export default function StudentCollectionPoints() {
             <span className="badge badge-green">{filtered.length} active</span>
           </div>
           <div className="map-preview" style={{ minHeight: 420 }}>
+            <div
+              className="map-pin"
+              style={{ left: "50%", top: "50%", background: "#2563eb", zIndex: 3 }}
+              title="Your browser location"
+            >
+              <LocateFixed size={16} />
+            </div>
             {filtered.slice(0, 10).map((point, index) => (
               <div
                 key={point._id}

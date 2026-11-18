@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { MapContainer, TileLayer, Marker, Popup, Circle } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
 import { useAuth } from "../../hooks/useAuth.js";
 import { getStudentDashboard } from "../../api/studentApi.js";
@@ -284,25 +284,30 @@ export default function StudentDashboard(){
   useEffect(()=>{
     let active=true;
 
-    const refresh = () => {
-      Promise.all([getStudentDashboard(), getLeaderboard(), getCollectionPoints()])
-        .then(([dashboardRes, leaderboardRes, pointsRes])=>{
+    const refreshCore = () => {
+      getStudentDashboard()
+        .then((dashboardRes)=>{
           if(!active)return;
-          const dashboardData = dashboardRes.data.data || dashboardRes.data || null;
-          setDash(dashboardData);
-          setLeaderboard((leaderboardRes.data.data || leaderboardRes.data || []).slice(0, 5));
-          setPoints(pointsRes.data.data || pointsRes.data || []);
+          setDash(dashboardRes.data.data || dashboardRes.data || null);
         })
-        .catch(()=>{
-          if(!active)return;
-          setDash(null);
-        })
+        .catch(()=>{ if(active) setDash(null); })
         .finally(()=>{ if(active)setLoading(false); });
     };
 
-    refresh();
-    const interval = window.setInterval(refresh, 10000);
-    return ()=>{active=false; window.clearInterval(interval);};
+    const refreshSecondary = () => {
+      Promise.all([getLeaderboard(), getCollectionPoints()])
+        .then(([leaderboardRes, pointsRes])=>{
+          if(!active)return;
+          setLeaderboard((leaderboardRes.data.data || leaderboardRes.data || []).slice(0, 5));
+          setPoints(pointsRes.data.data || pointsRes.data || []);
+        })
+        .catch(()=>{});
+    };
+
+    refreshCore();
+    const secondaryDelay = window.setTimeout(refreshSecondary, 500);
+    const interval = window.setInterval(refreshCore, 15000);
+    return ()=>{active=false; window.clearTimeout(secondaryDelay); window.clearInterval(interval);};
   },[]);
 
   const submissions=dash?.submissions || [];
@@ -564,35 +569,34 @@ const facilityPinIcon = L.divIcon({
 });
 
 function CompactLocationMap({ points = [] }) {
-  const [coords, setCoords] = useState(DEFAULT_MAP_CENTER);
-  const [ready, setReady] = useState(true);
+  const [coords, setCoords] = useState(null);
+  const [locationStatus, setLocationStatus] = useState("Locating your browser position...");
+  const [accuracy, setAccuracy] = useState(null);
 
   useEffect(() => {
-    let active = true;
-
     if (!navigator.geolocation) {
-      setReady(true);
-      return () => {
-        active = false;
-      };
+      setLocationStatus("Browser geolocation is not supported.");
+      return undefined;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      ({ coords: position }) => {
-        if (!active) return;
-        setCoords({ lat: position.latitude, lng: position.longitude });
-        setReady(true);
+    setLocationStatus("Allow location access to center the map on you.");
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        setCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
+        setAccuracy(position.coords.accuracy);
+        setLocationStatus("Using your real browser location");
       },
-      () => {
-        if (!active) return;
-        setReady(true);
+      (error) => {
+        setLocationStatus(
+          error.code === 1
+            ? "Location permission denied. Allow it in your browser to use the live map."
+            : "Your browser could not determine its location."
+        );
       },
-      { enableHighAccuracy: false, timeout: 3000, maximumAge: 120000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     );
 
-    return () => {
-      active = false;
-    };
+    return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
   const mapPoints = (points || [])
@@ -605,11 +609,16 @@ function CompactLocationMap({ points = [] }) {
       distanceKm: point.distanceKm || "Nearby",
     }));
 
+  const center = coords || DEFAULT_MAP_CENTER;
+
   return (
     <div className="compact-map-card">
+      <div style={{ fontSize: 12, color: coords ? "var(--g-700)" : "var(--text-muted)", marginBottom: 8 }}>
+        {locationStatus}{accuracy ? ` (±${Math.round(accuracy)} m)` : ""}
+      </div>
       <div className="compact-map-shell">
         <MapContainer
-          center={[coords.lat, coords.lng]}
+          center={[center.lat, center.lng]}
           zoom={12}
           scrollWheelZoom={false}
           dragging={false}
@@ -621,9 +630,19 @@ function CompactLocationMap({ points = [] }) {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution="&copy; OpenStreetMap contributors"
           />
-          <Marker position={[coords.lat, coords.lng]} icon={userPinIcon}>
-            <Popup>Your location</Popup>
-          </Marker>
+          {coords && (
+            <>
+              <Marker position={[coords.lat, coords.lng]} icon={userPinIcon}>
+                <Popup>Your real browser location</Popup>
+              </Marker>
+              <Circle
+                center={[coords.lat, coords.lng]}
+                radius={Math.max(accuracy || 100, 100)}
+                pathOptions={{ color: "#16a34a", fillColor: "#86efac", fillOpacity: 0.18 }}
+              />
+              <RecenterMap lat={coords.lat} lng={coords.lng} />
+            </>
+          )}
           {mapPoints.map((point, index) => (
             <Marker key={`${point.name}-${index}`} icon={facilityPinIcon} position={[point.lat, point.lng]}>
               <Popup>
@@ -634,9 +653,16 @@ function CompactLocationMap({ points = [] }) {
               </Popup>
             </Marker>
           ))}
-          <Circle center={[coords.lat, coords.lng]} radius={1500} pathOptions={{ color: "#16a34a", fillColor: "#86efac", fillOpacity: 0.18 }} />
         </MapContainer>
       </div>
     </div>
   );
+}
+
+function RecenterMap({ lat, lng }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([lat, lng], Math.max(map.getZoom(), 12), { animate: true });
+  }, [map, lat, lng]);
+  return null;
 }

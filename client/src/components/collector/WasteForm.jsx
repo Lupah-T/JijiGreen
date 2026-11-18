@@ -47,7 +47,9 @@ export default function WasteForm({ collectionPoints = [], onSubmitted }) {
   const [collectionPoint, setCollectionPoint] = useState("");
 
   const materialResult = analysis?.material;
-  const brandResult = analysis?.brand_recognition?.result;
+  const brandRecognitionAllowed = isBottle && ["plastic", "glass"].includes(material);
+  const brandResult = brandRecognitionAllowed ? analysis?.brand_recognition?.result : null;
+
   const predictedMaterial = normalizeMaterial(
     materialResult?.predicted_material ??
     materialResult?.material ??
@@ -159,7 +161,7 @@ export default function WasteForm({ collectionPoints = [], onSubmitted }) {
         );
       }
 
-      if (analysis?.brand_recognition?.result) {
+      if (brandRecognitionAllowed && analysis?.brand_recognition?.result) {
         payload.append(
           "aiBrandPrediction",
           JSON.stringify(analysis.brand_recognition.result)
@@ -295,13 +297,14 @@ export default function WasteForm({ collectionPoints = [], onSubmitted }) {
         >
           <input
             type="checkbox"
-            checked={isBottle}
+            checked={isBottle && ["plastic", "glass"].includes(material)}
+            disabled={!["plastic", "glass"].includes(material)}
             onChange={(event) => {
               setIsBottle(event.target.checked);
               setAnalysis(null);
             }}
           />
-          This item is a bottle/container (enables experimental brand recognition)
+          This item is a plastic/glass bottle or container — experimental brand recognition
         </label>
 
         {analysis && (
