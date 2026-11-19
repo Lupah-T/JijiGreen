@@ -18,8 +18,12 @@ import { getCollectionHistory, getPendingSubmissions } from "../../api/collector
 import { getCollectionPoints } from "../../api/collectionPointApi.js";
 import WasteForm from "../../components/collector/WasteForm.jsx";
 
-const unwrap = (response) =>
-  Array.isArray(response?.data?.data) ? response.data.data : [];
+const unwrap = (response) => {
+  const payload = response?.data;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload)) return payload;
+  return [];
+};
 
 const buildChartData = (submissions = []) => {
   const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -53,15 +57,23 @@ export default function CollectorDashboard() {
   const refresh = useCallback(async () => {
     try {
       setError("");
-      const [historyRes, pendingRes, pointsRes] = await Promise.all([
+      const [historyResult, pendingResult, pointsResult] = await Promise.allSettled([
         getCollectionHistory(),
         getPendingSubmissions(),
         getCollectionPoints(),
       ]);
 
-      setSubmissions(unwrap(historyRes));
-      setPending(unwrap(pendingRes));
-      setCollectionPoints(unwrap(pointsRes));
+      setSubmissions(historyResult.status === "fulfilled" ? unwrap(historyResult.value) : []);
+      setPending(pendingResult.status === "fulfilled" ? unwrap(pendingResult.value) : []);
+      setCollectionPoints(pointsResult.status === "fulfilled" ? unwrap(pointsResult.value) : []);
+
+      const failures = [historyResult, pendingResult, pointsResult].filter((result) => result.status === "rejected");
+      if (failures.length) {
+        const firstError = failures[0].reason;
+        setError(firstError?.message || "Some collector activity could not be loaded.");
+      } else {
+        setError("");
+      }
     } catch (err) {
       setError(err.response?.data?.message || "Unable to load collector activity.");
     } finally {

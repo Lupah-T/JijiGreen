@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
 import { useAuth } from "../../hooks/useAuth.js";
-import { getStudentDashboard } from "../../api/studentApi.js";
+import { getStudentDashboard, submitWasteSubmission } from "../../api/studentApi.js";
 import { getLeaderboard } from "../../api/rewardsApi.js";
 import { getCollectionPoints } from "../../api/collectionPointApi.js";
 import { Recycle, TrendingUp, Leaf, X, QrCode, Scale, CheckCircle,
@@ -146,12 +146,24 @@ function SubmitModal({open,onClose}){
   const[type,setType]=useState("plastic");
   const[weight,setWeight]=useState("");
   const[done,setDone]=useState(false);
+  const [submitting,setSubmitting]=useState(false);
+  const [error,setError]=useState("");
   const pts=weight?Math.round((parseFloat(weight)||0)*(WASTE_TYPES.find(w=>w.v===type)?.pts||0)):0;
-  const submit=e=>{
+  const submit=async e=>{
     e.preventDefault();
     if(!weight||parseFloat(weight)<=0)return;
-    setDone(true);
-    setTimeout(()=>{setDone(false);setWeight("");onClose();},2400);
+
+    setSubmitting(true);
+    setError("");
+    try {
+      await submitWasteSubmission({ wasteType:type, weightKg:Number(weight) });
+      setDone(true);
+      setTimeout(()=>{setDone(false);setWeight("");onClose();},2400);
+    } catch (err) {
+      setError(err?.message || "Unable to submit waste. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
   return(
     <Modal open={open} onClose={onClose} title="Submit Recyclables">
@@ -163,7 +175,7 @@ function SubmitModal({open,onClose}){
         </div>
       ):(
         <form onSubmit={submit} style={{display:"grid",gap:18}}>
-          <p style={{color:"var(--text-muted)",fontSize:14,margin:0}}>Select waste type and estimated weight. A collector at your nearest drop-off will confirm.</p>
+          <p style={{color:"var(--text-muted)",fontSize:14,margin:0}}>Select waste type and estimated weight. This submission will be sent for collector review.</p>
           <div className="field">
             <span className="field-label">Waste Type</span>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
@@ -193,8 +205,9 @@ function SubmitModal({open,onClose}){
               Estimated reward: ~{pts} eco-points 🌱
             </div>
           )}
-          <button className="btn btn-primary" type="submit" style={{justifyContent:"center",padding:13}}>
-            <Recycle size={16}/> Submit Waste
+          {error && <div className="alert alert-error">{error}</div>}
+          <button className="btn btn-primary" type="submit" disabled={submitting} style={{justifyContent:"center",padding:13}}>
+            {submitting ? "Submitting..." : <><Recycle size={16}/> Submit Waste</>}
           </button>
         </form>
       )}

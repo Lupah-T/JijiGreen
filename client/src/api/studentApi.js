@@ -4,3 +4,4 @@ export const getStudentDashboard = () => api.get("/student/dashboard");
 export const getStudentHistory   = () => api.get("/student/history");
 export const getProfile          = () => api.get("/student/profile");
 export const updateProfile       = (data) => api.put("/student/profile", data);
+export const submitWasteSubmission = (payload) => api.post("/student/submissions", payload);

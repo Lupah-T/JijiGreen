@@ -119,7 +119,7 @@ export const verifyWasteSubmission = async (req, res) => {
     // Operations and super administrators retain wider access.
     const ownershipFilter =
       req.user.role === "collector"
-        ? { collector: req.user._id }
+        ? {}
         : {};
 
     const existing = await WasteSubmission.findOne({
@@ -215,16 +215,13 @@ export const verifyWasteSubmission = async (req, res) => {
     console.error("[verify-waste-submission]", error);
     return res.status(500).json({
       success: false,
-      message: "Unable to process waste verification.",
+      message: error?.message || "Unable to process waste verification.",
     });
   }
 };
 
 export const getCollectionHistory = async (req, res) => {
-  const filter =
-    req.user.role === "collector"
-      ? { collector: req.user._id }
-      : {};
+  const filter = {};
 
   const submissions = await WasteSubmission.find(filter)
     .populate("student", "name email")
@@ -239,20 +236,19 @@ export const getCollectionHistory = async (req, res) => {
 };
 
 export const getPendingSubmissions = async (req, res) => {
-  const assignedPoints = await CollectionPoint.find({
-    status: "active",
-    assignedCollectors: req.user._id,
-  }).select("_id");
+  try {
+    const submissionFilter = { status: "pending" };
 
-  const submissions = await WasteSubmission.find({
-    status: "pending",
-    collectionPoint: { $in: assignedPoints.map((point) => point._id) },
-  })
-    .populate("student", "name email role school")
-    .populate("collectionPoint", "name county address acceptedWasteTypes")
-    .sort({ createdAt: -1 });
+    const submissions = await WasteSubmission.find(submissionFilter)
+      .populate("student", "name email role school")
+      .populate("collectionPoint", "name county address acceptedWasteTypes")
+      .sort({ createdAt: -1 });
 
-  res.json(submissions);
+    return res.json({ success: true, data: submissions });
+  } catch (error) {
+    console.error("[get-pending-submissions]", error);
+    return res.status(500).json({ success: false, message: "Unable to load pending submissions." });
+  }
 };
 
 export const applyToBecomeCollector = async (req, res) => {

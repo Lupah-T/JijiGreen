@@ -1,11 +1,12 @@
 import { Router } from "express";
-import { getStudentDashboard, getStudentHistory, getProfile, updateProfile } from "../controllers/studentController.js";
+import { getStudentDashboard, getStudentHistory, getProfile, updateProfile, submitWaste } from "../controllers/studentController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { allowRoles } from "../middleware/roleMiddleware.js";
 
 const router = Router();
 
 router.use(protect, allowRoles("student", "collector"));
+router.post("/submissions", submitWaste);
 router.get("/dashboard", getStudentDashboard);
 router.get("/history", getStudentHistory);
 router.get("/profile", getProfile);

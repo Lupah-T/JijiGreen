@@ -667,3 +667,24 @@ When registering, every user enters their **age**:
 Once a user has **earned 500 points in total** (spending points on rewards does *not* reduce this), they are automatically awarded an **Eco Champion** pack: a **watch, a bag and a certificate** (printable from the Rewards page). Applies to both children and adults.
 
 Rules live in `server/src/config/rewardConfig.js` (age limit, 60-point child minimum, 500-point milestone and the default reward catalogue, which is seeded automatically on first start).
+
+---
+
+## AI deployment configuration
+
+The JijiAI/FastAPI process is a separate service. It is not automatically deployed with the Express or Vercel applications.
+
+1. Deploy JijiAI to a public host (Render, Railway, or another HTTPS host) and confirm `GET /health` (or the service's available health route) responds successfully.
+2. In the JijiGreen backend environment, set:
+   ```dotenv
+   AI_SERVICE_URL=https://your-ai-service.example
+   CLIENT_URL=https://your-frontend-domain.example
+   NODE_ENV=production
+   ```
+3. In the Vercel frontend environment, set:
+   ```dotenv
+   VITE_API_URL=https://your-backend-domain.example/api
+   ```
+4. Redeploy the backend and rebuild/redeploy the frontend after changing environment variables.
+
+`AI_SERVICE_URL=http://127.0.0.1:8000` only works on a machine where JijiAI is running on that same machine. It cannot be reached from a hosted backend.

@@ -1,12 +1,52 @@
-export const getDIYRecommendations = async (req, res) => {
-  const serviceUrl = process.env.AI_SERVICE_URL;
+import { URL } from "url";
 
-  if (!serviceUrl) {
+const getAiServiceUrl = () => {
+  const rawUrl = String(process.env.AI_SERVICE_URL || "").trim();
+  if (!rawUrl) return null;
+
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return { invalid: true };
+  }
+
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    return { invalid: true };
+  }
+
+  const normalizedUrl = parsed.toString().replace(/\/+$/, "");
+  const isLoopback = ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname);
+  if (isLoopback && process.env.NODE_ENV === "production") {
+    return { loopback: true, url: normalizedUrl };
+  }
+
+  return { url: normalizedUrl };
+};
+
+export const getDIYRecommendations = async (req, res) => {
+  const aiService = getAiServiceUrl();
+
+  if (!aiService) {
     return res.status(503).json({
       success: false,
       message: "The JijiGreen AI service is not configured.",
     });
   }
+  if (aiService.invalid) {
+    return res.status(503).json({
+      success: false,
+      message: "AI_SERVICE_URL is invalid. Configure a public http:// or https:// URL.",
+    });
+  }
+  if (aiService.loopback) {
+    return res.status(503).json({
+      success: false,
+      message: "The configured AI service URL is localhost-only. Deploy JijiAI publicly and set AI_SERVICE_URL to its HTTPS URL.",
+    });
+  }
+
+  const serviceUrl = aiService.url;
 
   const material = String(req.query.material ?? "").trim();
   const audience = String(req.query.audience ?? "user").trim() || "user";
@@ -61,14 +101,28 @@ export const getDIYRecommendations = async (req, res) => {
 };
 
 export const getCollectionPointRecommendations = async (req, res) => {
-  const serviceUrl = process.env.AI_SERVICE_URL;
+  const aiService = getAiServiceUrl();
 
-  if (!serviceUrl) {
+  if (!aiService) {
     return res.status(503).json({
       success: false,
       message: "The JijiGreen AI service is not configured.",
     });
   }
+  if (aiService.invalid) {
+    return res.status(503).json({
+      success: false,
+      message: "AI_SERVICE_URL is invalid. Configure a public http:// or https:// URL.",
+    });
+  }
+  if (aiService.loopback) {
+    return res.status(503).json({
+      success: false,
+      message: "The configured AI service URL is localhost-only. Deploy JijiAI publicly and set AI_SERVICE_URL to its HTTPS URL.",
+    });
+  }
+
+  const serviceUrl = aiService.url;
 
   const material = String(req.query.material ?? "").trim();
   const condition = String(req.query.condition ?? "").trim();
@@ -143,14 +197,28 @@ export const analyzeWasteImage = async (req, res) => {
     });
   }
 
-  const serviceUrl = process.env.AI_SERVICE_URL;
+  const aiService = getAiServiceUrl();
 
-  if (!serviceUrl) {
+  if (!aiService) {
     return res.status(503).json({
       success: false,
       message: "The JijiGreen AI service is not configured.",
     });
   }
+  if (aiService.invalid) {
+    return res.status(503).json({
+      success: false,
+      message: "AI_SERVICE_URL is invalid. Configure a public http:// or https:// URL.",
+    });
+  }
+  if (aiService.loopback) {
+    return res.status(503).json({
+      success: false,
+      message: "The configured AI service URL is localhost-only. Deploy JijiAI publicly and set AI_SERVICE_URL to its HTTPS URL.",
+    });
+  }
+
+  const serviceUrl = aiService.url;
 
   try {
     const form = new FormData();

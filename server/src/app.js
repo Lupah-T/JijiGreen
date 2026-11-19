@@ -17,7 +17,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 
-app.use(cors({ origin: (process.env.CLIENT_URL || "http://localhost:5173,http://localhost:5174").split(",").map((s) => s.trim()) }));
+const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173,http://localhost:5174")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean)
+  .map((origin) => origin.replace(/\/+$/, ""));
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin.replace(/\/+$/, ""))) {
+      return callback(null, true);
+    }
+    return callback(new Error("Origin not allowed by CORS"));
+  },
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(morgan("dev"));

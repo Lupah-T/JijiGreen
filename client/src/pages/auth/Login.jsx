@@ -56,6 +56,7 @@ export default function Login() {
     }
 
     autoLoginStarted.current = true;
+    authService.logout();
     setForm(demo);
     setErr("");
     setBusy(true);

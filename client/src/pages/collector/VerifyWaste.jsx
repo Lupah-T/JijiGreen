@@ -7,7 +7,7 @@ import {
   XCircle,
 } from "lucide-react";
 import {
-  getCollectionHistory,
+  getPendingSubmissions,
   verifyWaste,
 } from "../../api/collectorApi.js";
 
@@ -21,15 +21,15 @@ export default function VerifyWaste() {
   const refresh = useCallback(async () => {
     try {
       setError("");
-      const response = await getCollectionHistory();
+      const response = await getPendingSubmissions();
       const records = Array.isArray(response.data?.data)
         ? response.data.data
-        : [];
-      setSubmissions(records.filter((item) => item.status === "pending"));
+        : Array.isArray(response.data)
+          ? response.data
+          : [];
+      setSubmissions(records);
     } catch (err) {
-      setError(
-        err.response?.data?.message || "Unable to load pending submissions."
-      );
+      setError(err?.message || err?.response?.data?.message || "Unable to load pending submissions.");
     } finally {
       setLoading(false);
     }
@@ -37,6 +37,8 @@ export default function VerifyWaste() {
 
   useEffect(() => {
     refresh();
+    const interval = window.setInterval(refresh, 5000);
+    return () => window.clearInterval(interval);
   }, [refresh]);
 
   const processSubmission = async (id, status) => {
@@ -50,7 +52,7 @@ export default function VerifyWaste() {
       await refresh();
     } catch (err) {
       setError(
-        err.response?.data?.message || "Unable to process this submission."
+        err?.message || err?.data?.message || "Unable to process this submission."
       );
     } finally {
       setProcessingId("");

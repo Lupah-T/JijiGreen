@@ -3,7 +3,7 @@ export const normalizeApiError = (error) => {
     return {
       success: false,
       statusCode: 500,
-      message: "Something went wrong",
+      message: error.message || "Unable to reach the server",
       data: null,
       errors: [],
       fieldErrors: {},
@@ -17,7 +17,7 @@ export const normalizeApiError = (error) => {
   return {
     success: false,
     statusCode,
-    message: statusCode === 500 ? "Something went wrong" : data?.message || (statusCode === 422 ? "Validation failed" : "Something went wrong"),
+    message: data?.message || (statusCode === 422 ? "Validation failed" : statusCode === 500 ? "Something went wrong" : "Something went wrong"),
     data: null,
     errors,
     fieldErrors: errors.reduce((acc, item) => {
